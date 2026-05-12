@@ -1,5 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -32,4 +35,17 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+
+    // hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+
+    // ktor
+    implementation(libs.bundles.ktor)
+
+    // kotlinx-serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // timber
+    implementation(libs.timber)
 }
