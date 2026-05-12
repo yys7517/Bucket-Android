@@ -1,4 +1,4 @@
-package com.example.bucket_app
+package com.bucket.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,15 +29,17 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -47,88 +50,41 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bucket_app.ui.theme.BucketappTheme
+import com.bucket.presentation.theme.BucketappTheme
+import com.bucket.presentation.theme.HomeBackground
+import com.bucket.presentation.theme.Ink
+import com.bucket.presentation.theme.LightPurple
+import com.bucket.presentation.theme.Muted
+import com.bucket.presentation.theme.Purple
+import com.bucket.presentation.theme.SoftLine
+import com.example.domain.model.home.PopularBucket
+import com.example.domain.model.home.RecentBucket
+import dagger.hilt.android.AndroidEntryPoint
+import androidx.hilt.navigation.compose.hiltViewModel
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             BucketappTheme(dynamicColor = false) {
-                BucketHomeScreen()
+                val viewModel: HomeViewModel = hiltViewModel()
+                val uiState by viewModel.uiState.collectAsState()
+                BucketHomeScreen(uiState = uiState)
             }
         }
     }
 }
 
-private val Background = Color(0xFFFAF7FF)
-private val Ink = Color(0xFF171421)
-private val Muted = Color(0xFF7A748D)
-private val SoftLine = Color(0xFFE9E4F1)
-private val Purple = Color(0xFF8D6BE8)
-private val LightPurple = Color(0xFFE9DBFF)
-
-private data class PopularBucket(
-    val category: String,
-    val title: String,
-    val author: String,
-    val initial: String,
-    val likes: Int,
-    val colors: List<Color>,
-    val chipColor: Color
-)
-
-private data class RecentBucket(
-    val category: String,
-    val title: String,
-    val author: String,
-    val date: String,
-    val initial: String,
-    val color: Color,
-    val textColor: Color
-)
-
-private val popularBuckets = listOf(
-    PopularBucket(
-        category = "운동",
-        title = "마라톤 풀코스 완주하기",
-        author = "서연",
-        initial = "서",
-        likes = 248,
-        colors = listOf(Color(0xFFD9F4E1), Color(0xFFEAF8EE)),
-        chipColor = Color(0xFFEBDDFF)
-    ),
-    PopularBucket(
-        category = "여행",
-        title = "제주 한 달 살기",
-        author = "준호",
-        initial = "준",
-        likes = 193,
-        colors = listOf(Color(0xFFD9F1FA), Color(0xFFE8F7FF)),
-        chipColor = Color(0xFFD8F2FF)
-    ),
-    PopularBucket(
-        category = "취미",
-        title = "나만의 사진전 열기",
-        author = "하린",
-        initial = "하",
-        likes = 156,
-        colors = listOf(Color(0xFFFFE9D4), Color(0xFFFFF3E7)),
-        chipColor = Color(0xFFFFE3C5)
-    )
-)
-
-private val recentBuckets = listOf(
-    RecentBucket("워홀", "호주 워킹홀리데이 다녀오기", "민지", "2026.09.01", "민", Color(0xFFFFD9DC), Color(0xFFA6414A)),
-    RecentBucket("학습", "일본어 JLPT N1 따기", "도윤", "2026.01.10", "도", Color(0xFFFFE3C1), Color(0xFF995A14)),
-    RecentBucket("취미", "주말마다 필름 사진 찍기", "유나", "2026.04.22", "유", Color(0xFFDCE9FF), Color(0xFF315EA6))
-)
-
 @Composable
-fun BucketHomeScreen(modifier: Modifier = Modifier) {
+fun BucketHomeScreen(
+    uiState: HomeUiState,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Background
+        color = HomeBackground
     ) {
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
@@ -136,7 +92,7 @@ fun BucketHomeScreen(modifier: Modifier = Modifier) {
                 contentPadding = WindowInsets.statusBars
                     .asPaddingValues()
                     .let {
-                        androidx.compose.foundation.layout.PaddingValues(
+                        PaddingValues(
                             start = 24.dp,
                             top = it.calculateTopPadding() + 26.dp,
                             end = 0.dp,
@@ -154,7 +110,7 @@ fun BucketHomeScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(end = 24.dp)
                     )
                     Spacer(Modifier.height(16.dp))
-                    PopularBucketRow()
+                    PopularBucketRow(uiState.popularBuckets)
                 }
                 item {
                     SectionHeader(
@@ -166,7 +122,23 @@ fun BucketHomeScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(end = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        recentBuckets.forEach { RecentBucketCard(it) }
+                        uiState.recentBuckets.forEach { RecentBucketCard(it) }
+                        if (uiState.isLoading) {
+                            Text(
+                                text = "불러오는 중...",
+                                color = Muted,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        uiState.errorMessage?.let { message ->
+                            Text(
+                                text = message,
+                                color = Color(0xFFE04D5F),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -273,10 +245,10 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun PopularBucketRow() {
+private fun PopularBucketRow(popularBuckets: List<PopularBucket>) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(end = 24.dp)
+        contentPadding = PaddingValues(end = 24.dp)
     ) {
         items(popularBuckets) { bucket ->
             PopularBucketCard(bucket)
@@ -298,7 +270,7 @@ private fun PopularBucketCard(bucket: PopularBucket) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(152.dp)
-                .background(Brush.linearGradient(bucket.colors))
+                .background(Brush.linearGradient(categoryGradient(bucket.category, bucket.categoryColor)))
                 .padding(20.dp)
         ) {
             Text(
@@ -318,7 +290,7 @@ private fun PopularBucketCard(bucket: PopularBucket) {
                 Text("♥", color = Color(0xFFFF5D65), fontSize = 13.sp)
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    text = bucket.likes.toString(),
+                    text = bucket.likeCount.toString(),
                     color = Ink,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -340,10 +312,15 @@ private fun PopularBucketCard(bucket: PopularBucket) {
                 overflow = TextOverflow.Ellipsis
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                InitialBadge(text = bucket.initial, color = bucket.chipColor, textColor = Purple)
+                val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
+                InitialBadge(
+                    text = bucket.userName.initial(),
+                    color = accentColor.copy(alpha = 0.18f),
+                    textColor = accentColor
+                )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = bucket.author,
+                    text = bucket.userName,
                     color = Color(0xFF6F687E),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -369,12 +346,13 @@ private fun RecentBucketCard(bucket: RecentBucket) {
             modifier = Modifier
                 .size(76.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(bucket.color),
+                .background(categoryAccent(bucket.category, bucket.categoryColor).copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center
         ) {
+            val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
             Text(
                 text = bucket.category,
-                color = bucket.textColor,
+                color = accentColor,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -394,10 +372,16 @@ private fun RecentBucketCard(bucket: RecentBucket) {
             )
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                InitialBadge(text = bucket.initial, color = bucket.color.copy(alpha = 0.74f), textColor = bucket.textColor, size = 24)
+                val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
+                InitialBadge(
+                    text = bucket.userName.initial(),
+                    color = accentColor.copy(alpha = 0.18f),
+                    textColor = accentColor,
+                    size = 24
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "${bucket.author} · ${bucket.date}",
+                    text = "${bucket.userName} · ${bucket.startDate}",
                     color = Color(0xFF8C8697),
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -432,6 +416,29 @@ private fun InitialBadge(
         )
     }
 }
+
+private fun String.initial(): String = trim().take(1).ifEmpty { "?" }
+
+private fun categoryGradient(category: String, categoryColor: String): List<Color> {
+    val accent = categoryAccent(category, categoryColor)
+    return listOf(accent.copy(alpha = 0.24f), accent.copy(alpha = 0.08f))
+}
+
+private fun categoryAccent(category: String, categoryColor: String): Color =
+    categoryColor.toComposeColorOrNull() ?: when (category) {
+        "여행" -> Color(0xFF2C8BAA)
+        "학습" -> Color(0xFF7B5DD6)
+        "건강" -> Color(0xFF2F9B68)
+        "운동" -> Color(0xFF2F9B68)
+        "취미" -> Color(0xFFD57931)
+        else -> Purple
+    }
+
+private fun String.toComposeColorOrNull(): Color? =
+    runCatching {
+        val normalized = if (startsWith("#")) this else "#$this"
+        Color(android.graphics.Color.parseColor(normalized))
+    }.getOrNull()
 
 @Composable
 private fun BottomNavigation(modifier: Modifier = Modifier) {
@@ -480,10 +487,10 @@ private fun BellIcon(modifier: Modifier = Modifier) {
         val w = size.width
         val h = size.height
         drawLine(Ink, Offset(w * 0.25f, h * 0.72f), Offset(w * 0.75f, h * 0.72f), strokeWidth = stroke.width, cap = StrokeCap.Round)
-        drawArc(Ink, 200f, 140f, false, topLeft = Offset(w * 0.24f, h * 0.20f), size = androidx.compose.ui.geometry.Size(w * 0.52f, h * 0.58f), style = stroke)
+        drawArc(Ink, 200f, 140f, false, topLeft = Offset(w * 0.24f, h * 0.20f), size = Size(w * 0.52f, h * 0.58f), style = stroke)
         drawLine(Ink, Offset(w * 0.31f, h * 0.69f), Offset(w * 0.31f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
         drawLine(Ink, Offset(w * 0.69f, h * 0.69f), Offset(w * 0.69f, h * 0.50f), strokeWidth = stroke.width, cap = StrokeCap.Round)
-        drawArc(Ink, 30f, 120f, false, topLeft = Offset(w * 0.39f, h * 0.68f), size = androidx.compose.ui.geometry.Size(w * 0.22f, h * 0.18f), style = stroke)
+        drawArc(Ink, 30f, 120f, false, topLeft = Offset(w * 0.39f, h * 0.68f), size = Size(w * 0.22f, h * 0.18f), style = stroke)
     }
 }
 
@@ -521,10 +528,10 @@ private fun GridIcon(modifier: Modifier = Modifier) {
         val stroke = Stroke(width = 2.3.dp.toPx())
         val color = Color(0xFF6E687D)
         val cell = size.width * 0.28f
-        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.12f), size = androidx.compose.ui.geometry.Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.12f), size = androidx.compose.ui.geometry.Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.60f), size = androidx.compose.ui.geometry.Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.60f), size = androidx.compose.ui.geometry.Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
+        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.12f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
+        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.12f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
+        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.60f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
+        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.60f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
     }
 }
 
@@ -542,7 +549,7 @@ private fun HomeIcon(modifier: Modifier = Modifier, color: Color = Ink) {
             close()
         }
         drawPath(roof, color)
-        drawRect(Color.White.copy(alpha = 0.82f), topLeft = Offset(size.width * 0.43f, size.height * 0.61f), size = androidx.compose.ui.geometry.Size(size.width * 0.14f, size.height * 0.23f))
+        drawRect(Color.White.copy(alpha = 0.82f), topLeft = Offset(size.width * 0.43f, size.height * 0.61f), size = Size(size.width * 0.14f, size.height * 0.23f))
     }
 }
 
@@ -552,7 +559,7 @@ private fun UserIcon(modifier: Modifier = Modifier) {
         val color = Color(0xFF6E687D)
         val stroke = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round)
         drawCircle(color, radius = size.width * 0.17f, center = Offset(size.width * 0.5f, size.height * 0.28f), style = stroke)
-        drawArc(color, 205f, 130f, false, topLeft = Offset(size.width * 0.18f, size.height * 0.48f), size = androidx.compose.ui.geometry.Size(size.width * 0.64f, size.height * 0.56f), style = stroke)
+        drawArc(color, 205f, 130f, false, topLeft = Offset(size.width * 0.18f, size.height * 0.48f), size = Size(size.width * 0.64f, size.height * 0.56f), style = stroke)
     }
 }
 
@@ -560,6 +567,33 @@ private fun UserIcon(modifier: Modifier = Modifier) {
 @Composable
 private fun BucketHomeScreenPreview() {
     BucketappTheme(dynamicColor = false) {
-        BucketHomeScreen()
+        BucketHomeScreen(
+            uiState = HomeUiState(
+                popularBuckets = listOf(
+                    PopularBucket(
+                        id = 1,
+                        category = "여행",
+                        categoryColor = "",
+                        title = "한라산 백록담 등반하기",
+                        userName = "test-user",
+                        profileImageUrl = "https://example.com/test-user.png",
+                        likeCount = 1,
+                        isLiked = false,
+                        progress = 66
+                    )
+                ),
+                recentBuckets = listOf(
+                    RecentBucket(
+                        id = 3,
+                        category = "건강",
+                        categoryColor = "",
+                        title = "매주 3회 러닝 루틴 만들기",
+                        userName = "test-user",
+                        profileImageUrl = "https://example.com/test-user.png",
+                        startDate = "2026-05-13"
+                    )
+                )
+            )
+        )
     }
 }
