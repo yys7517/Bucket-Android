@@ -1,4 +1,4 @@
-package com.bucket.presentation
+package com.bucket.presentation.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
