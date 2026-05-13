@@ -14,6 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.bucket.presentation.BucketAppState
 import com.bucket.presentation.theme.Ink
+import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.home.HomeRoute
 
 @Composable
@@ -44,7 +45,7 @@ fun BucketNavHost(
             .padding(padding)
     ) {
         composable(BucketRoute.Category.route) {
-            PlaceholderScreen(title = "버킷")
+            CategoryRoute()
         }
         composable(BucketRoute.Home.route) {
             HomeRoute()
