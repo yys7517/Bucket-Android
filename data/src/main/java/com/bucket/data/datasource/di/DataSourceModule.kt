@@ -1,5 +1,7 @@
 package com.bucket.data.datasource.di
 
+import com.bucket.data.datasource.category.CategoryDataSource
+import com.bucket.data.datasource.category.CategoryRemoteDataSource
 import com.bucket.data.datasource.home.HomeDataSource
 import com.bucket.data.datasource.home.HomeRemoteDataSource
 import dagger.Binds
@@ -16,4 +18,10 @@ internal abstract class DataSourceModule {
     abstract fun bindHomeDataSource(
         homeRemoteDataSource: HomeRemoteDataSource
     ): HomeDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindCategoryDataSource(
+        categoryRemoteDataSource: CategoryRemoteDataSource
+    ): CategoryDataSource
 }
