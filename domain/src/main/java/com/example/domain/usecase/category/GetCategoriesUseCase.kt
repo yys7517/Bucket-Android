@@ -6,7 +6,5 @@ import javax.inject.Inject
 class GetCategoriesUseCase @Inject constructor(
     private val categoryRepository: CategoryRepository
 ) {
-    suspend operator fun invoke() = runCatching {
-        categoryRepository.fetchCategories()
-    }
+    suspend operator fun invoke() = categoryRepository.fetchCategories()
 }

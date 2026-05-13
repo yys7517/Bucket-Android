@@ -9,9 +9,9 @@ import javax.inject.Inject
 class CategoryRepositoryImpl @Inject constructor(
     private val categoryDataSource: CategoryDataSource
 ) : CategoryRepository {
-    override suspend fun fetchCategories(): List<BucketCategory> =
+    override suspend fun fetchCategories(): Result<List<BucketCategory>> = runCatching {
         categoryDataSource.getCategories()
             .data
             .map { it.asBucketCategory() }
-
+    }
 }

@@ -2,8 +2,10 @@ package com.bucket.data.repository.di
 
 import com.bucket.data.repository.CategoryRepositoryImpl
 import com.bucket.data.repository.HomeRepositoryImpl
+import com.bucket.data.repository.PostRepositoryImpl
 import com.example.domain.repository.category.CategoryRepository
 import com.example.domain.repository.home.HomeRepository
+import com.example.domain.repository.post.PostRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -24,4 +26,10 @@ internal abstract class RepositoryModule {
     abstract fun bindCategoryRepository(
         categoryRepositoryImpl: CategoryRepositoryImpl
     ): CategoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPostRepository(
+        postRepositoryImpl: PostRepositoryImpl
+    ): PostRepository
 }
