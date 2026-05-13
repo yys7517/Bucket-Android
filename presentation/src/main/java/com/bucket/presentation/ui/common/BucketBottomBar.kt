@@ -65,6 +65,7 @@ private fun BottomBarIcon(
             BucketRoute.Category -> GridIcon(color = color)
             BucketRoute.Home -> HomeIcon(color = color)
             BucketRoute.Profile -> UserIcon(color = color)
+            else -> Unit
         }
     }
 }

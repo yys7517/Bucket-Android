@@ -38,15 +38,20 @@ import com.example.domain.model.home.RecentBucket
 
 @Composable
 fun HomeRoute(
+    onBucketClick: (Long) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    HomeScreen(uiState = uiState)
+    HomeScreen(
+        uiState = uiState,
+        onBucketClick = onBucketClick
+    )
 }
 
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    onBucketClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -72,11 +77,14 @@ fun HomeScreen(
             item {
                 SectionHeader(
                     title = "인기 버킷",
-                    leading = "♨",
+                    leading = "\uD83D\uDD25",
                     modifier = Modifier.padding(end = 24.dp)
                 )
                 Spacer(Modifier.height(16.dp))
-                PopularBucketRow(uiState.popularBuckets)
+                PopularBucketRow(
+                    popularBuckets = uiState.popularBuckets,
+                    onBucketClick = onBucketClick
+                )
             }
             item {
                 SectionHeader(
@@ -88,7 +96,12 @@ fun HomeScreen(
                     modifier = Modifier.padding(end = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    uiState.recentBuckets.forEach { RecentBucketCard(it) }
+                    uiState.recentBuckets.forEach { bucket ->
+                        RecentBucketCard(
+                            bucket = bucket,
+                            onClick = { onBucketClick(bucket.id) }
+                        )
+                    }
                     if (uiState.isLoading) {
                         Text(
                             text = "불러오는 중...",
@@ -112,13 +125,19 @@ fun HomeScreen(
 }
 
 @Composable
-private fun PopularBucketRow(popularBuckets: List<PopularBucket>) {
+private fun PopularBucketRow(
+    popularBuckets: List<PopularBucket>,
+    onBucketClick: (Long) -> Unit
+) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(end = 24.dp)
     ) {
         items(popularBuckets) { bucket ->
-            PopularBucketCard(bucket)
+            PopularBucketCard(
+                bucket = bucket,
+                onClick = { onBucketClick(bucket.id) }
+            )
         }
     }
 }

@@ -23,6 +23,14 @@ data class BucketAppState(
             restoreState = true
         }
     }
+
+    fun navigateToBucketDetail(bucketId: Long) {
+        navController.navigate(BucketRoute.BucketDetail.createRoute(bucketId))
+    }
+
+    fun navigateBack() {
+        navController.popBackStack()
+    }
 }
 
 @Composable

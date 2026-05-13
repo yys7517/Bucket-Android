@@ -2,6 +2,7 @@ package com.bucket.presentation.ui.home.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +30,16 @@ import com.bucket.presentation.theme.SoftLine
 import com.example.domain.model.home.PopularBucket
 
 @Composable
-fun PopularBucketCard(bucket: PopularBucket) {
+fun PopularBucketCard(
+    bucket: PopularBucket,
+    onClick: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .width(300.dp)
             .height(282.dp)
             .clip(RoundedCornerShape(22.dp))
+            .clickable(onClick = onClick)
             .background(Color.White)
             .border(1.dp, SoftLine, RoundedCornerShape(22.dp))
     ) {

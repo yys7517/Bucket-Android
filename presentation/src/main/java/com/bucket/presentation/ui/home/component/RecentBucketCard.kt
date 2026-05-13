@@ -3,6 +3,7 @@ package com.bucket.presentation.ui.home.component
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +32,16 @@ import com.bucket.presentation.theme.SoftLine
 import com.example.domain.model.home.RecentBucket
 
 @Composable
-fun RecentBucketCard(bucket: RecentBucket) {
+fun RecentBucketCard(
+    bucket: RecentBucket,
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(112.dp)
             .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
             .background(Color.White)
             .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
             .padding(horizontal = 18.dp),
