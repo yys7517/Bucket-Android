@@ -61,4 +61,7 @@ dependencies {
 
     // timber
     implementation(libs.timber)
+
+    // kakao
+    implementation(libs.kakao.login)
 }
