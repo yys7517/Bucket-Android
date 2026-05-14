@@ -1,5 +1,7 @@
 package com.example.domain.model.user
 
-data class User(
-    val id: Long
+data class UserInfo(
+    val userId: Long,
+    val accessToken: String,
+    val refreshToken: String
 )

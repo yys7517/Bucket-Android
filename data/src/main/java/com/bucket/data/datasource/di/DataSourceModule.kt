@@ -1,5 +1,7 @@
 package com.bucket.data.datasource.di
 
+import com.bucket.data.datasource.auth.AuthDataSource
+import com.bucket.data.datasource.auth.AuthRemoteDataSource
 import com.bucket.data.datasource.category.CategoryDataSource
 import com.bucket.data.datasource.category.CategoryRemoteDataSource
 import com.bucket.data.datasource.home.HomeDataSource
@@ -15,6 +17,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class DataSourceModule {
+    @Binds
+    @Singleton
+    abstract fun bindAuthDataSource(
+        authRemoteDataSource: AuthRemoteDataSource
+    ): AuthDataSource
+
     @Binds
     @Singleton
     abstract fun bindHomeDataSource(

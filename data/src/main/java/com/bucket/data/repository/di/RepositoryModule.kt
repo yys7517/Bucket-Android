@@ -1,8 +1,10 @@
 package com.bucket.data.repository.di
 
+import com.bucket.data.repository.AuthRepositoryImpl
 import com.bucket.data.repository.CategoryRepositoryImpl
 import com.bucket.data.repository.HomeRepositoryImpl
 import com.bucket.data.repository.PostRepositoryImpl
+import com.example.domain.repository.auth.AuthRepository
 import com.example.domain.repository.category.CategoryRepository
 import com.example.domain.repository.home.HomeRepository
 import com.example.domain.repository.post.PostRepository
@@ -15,6 +17,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        authRepositoryImpl: AuthRepositoryImpl
+    ): AuthRepository
+
     @Binds
     @Singleton
     abstract fun bindHomeRepository(
