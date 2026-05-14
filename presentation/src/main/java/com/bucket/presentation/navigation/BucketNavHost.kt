@@ -19,6 +19,7 @@ import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.detail.BucketDetailRoute
 import com.bucket.presentation.ui.home.HomeRoute
+import com.bucket.presentation.ui.login.LoginRoute
 
 @Composable
 private fun PlaceholderScreen(title: String) {
@@ -42,11 +43,14 @@ fun BucketNavHost(
 ) {
     NavHost(
         navController = appState.navController,
-        startDestination = BucketRoute.Home.route,
+        startDestination = BucketRoute.Login.route,
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
     ) {
+        composable(BucketRoute.Login.route) {
+            LoginRoute(onLoginSuccess = appState::navigateToHomeAfterLogin)
+        }
         composable(BucketRoute.Category.route) {
             CategoryRoute()
         }

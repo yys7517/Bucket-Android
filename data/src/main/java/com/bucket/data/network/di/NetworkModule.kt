@@ -1,6 +1,7 @@
 package com.bucket.data.network.di
 
 import com.bucket.data.BuildConfig
+import com.bucket.data.datasource.auth.AuthLocalDataSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,27 +52,32 @@ internal object NetworkModule {
     @Singleton
     @DefaultNetwork
     fun provideDefaultHttpClient(
-//        preferenceRepository: PreferenceRepository,
+        authLocalDataSource: AuthLocalDataSource
     ): HttpClient =
         createKtorClient().config {
             defaultRequest {
                 url(BuildConfig.BASE_URL)
                 contentType(ContentType.Application.Json)
             }
-//            install(Auth) {
-//                bearer {
-//                    loadTokens {
-//                        preferenceRepository
-//                            .uidFlow.first()?.let { uid ->
-//                                BearerTokens(uid.toString(), "")
-//                            }
-//                    }
-//                    sendWithoutRequest { request ->
-//                        val path = request.url.encodedPath
-//                        val shouldNotRequest = path.contains("login") || path.contains("register")
-//                        shouldNotRequest.not()
-//                    }
-//                }
-//            }
+            install(Auth) {
+                bearer {
+                    loadTokens {
+                        val accessToken = authLocalDataSource.accessToken.first()
+                        val refreshToken = authLocalDataSource.refreshToken.first().orEmpty()
+
+                        accessToken?.let {
+                            BearerTokens(
+                                accessToken = it,
+                                refreshToken = refreshToken
+                            )
+                        }
+                    }
+
+                    sendWithoutRequest { request ->
+                        val path = request.url.encodedPath
+                        !path.contains("auth")
+                    }
+                }
+            }
         }
 }

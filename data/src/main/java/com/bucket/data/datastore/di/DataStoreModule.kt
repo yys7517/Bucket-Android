@@ -1,4 +1,4 @@
-package com.bucket.data.local.di
+package com.bucket.data.datastore.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore

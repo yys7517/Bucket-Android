@@ -28,6 +28,15 @@ data class BucketAppState(
         navController.navigate(BucketRoute.BucketDetail.createRoute(bucketId))
     }
 
+    fun navigateToHomeAfterLogin() {
+        navController.navigate(BucketRoute.Home.route) {
+            popUpTo(BucketRoute.Login.route) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
     fun navigateBack() {
         navController.popBackStack()
     }
