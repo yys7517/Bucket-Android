@@ -29,7 +29,7 @@ android {
         }
         val kakaoNativeKey = properties.getProperty("KAKAO_NATIVE_KEY", "")
         buildConfigField("String", "KAKAO_NATIVE_KEY", "\"$kakaoNativeKey\"")
-//        manifestPlaceholders["KAKAO_REDIRECT_URI"] = properties.getProperty("KAKAO_REDIRECT_URI")
+        manifestPlaceholders["KAKAO_REDIRECT_URI"] = "kakao$kakaoNativeKey"
     }
 
     buildTypes {
