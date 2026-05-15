@@ -13,38 +13,55 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,39 +69,71 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.bucket.presentation.R
 import com.bucket.presentation.theme.BucketappTheme
+import com.example.domain.model.user.Author
 import com.bucket.presentation.theme.HomeBackground
 import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.theme.Muted
+import com.bucket.presentation.theme.Purple
 import com.bucket.presentation.theme.SoftLine
 import com.bucket.presentation.ui.home.component.UserAvatar
 import com.bucket.presentation.ui.home.component.categoryAccent
 import com.example.domain.model.post.BucketPostDetail
-import com.example.domain.model.post.PostPlan
+import com.example.domain.model.post.SmallGoal
+import com.example.domain.model.post.Todo
+
+// ─── 만다라트 8가지 선택 색상 ─────────────────────────────────────────────────
+
+val MANDALA_COLORS = listOf(
+    "#8D6BE8", // purple
+    "#E8736B", // red
+    "#E8A06B", // orange
+    "#E8C96B", // yellow
+    "#6BE88D", // green
+    "#6BB8E8", // blue
+    "#6BE8D4", // teal
+    "#E86BB8", // pink
+)
+
+// ─── Route ────────────────────────────────────────────────────────────────────
 
 @Composable
 fun BucketDetailRoute(
     bucketId: Long,
+    author: Author,
     onBackClick: () -> Unit,
     viewModel: BucketDetailViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(bucketId) {
-        viewModel.loadBucketDetail(bucketId)
-    }
+    LaunchedEffect(bucketId) { viewModel.loadBucketDetail(bucketId, author) }
     val uiState by viewModel.uiState.collectAsState()
-
     BucketDetailScreen(
         uiState = uiState,
-        onBackClick = onBackClick
+        onBackClick = onBackClick,
+        onSelectMandalaCell = viewModel::selectMandalaCell,
+        onDrillDown = viewModel::drillDown,
+        onExitDrillDown = viewModel::exitDrillDown,
+        onAddSmallGoal = viewModel::addSmallGoal,
+        onUpdateSmallGoal = viewModel::updateSmallGoal,
+        onDeleteSmallGoal = viewModel::deleteSmallGoal,
     )
 }
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 @Composable
 fun BucketDetailScreen(
     uiState: BucketDetailUiState,
     onBackClick: () -> Unit,
+    onSelectMandalaCell: (SmallGoal) -> Unit = {},
+    onDrillDown: (SmallGoal) -> Unit = {},
+    onExitDrillDown: () -> Unit = {},
+    onAddSmallGoal: (planId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _ -> },
+    onUpdateSmallGoal: (planId: Long, goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _, _ -> },
+    onDeleteSmallGoal: (planId: Long, goalId: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val bucket = uiState.bucketDetail
+    val isInDrillDown = uiState.drillDownPlan != null
+
     var isLiked by rememberSaveable(bucket?.id, bucket?.isLiked) {
         mutableStateOf(bucket?.isLiked ?: false)
     }
@@ -92,61 +141,42 @@ fun BucketDetailScreen(
         mutableStateOf(false)
     }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = HomeBackground
-    ) {
+    Surface(modifier = modifier.fillMaxSize(), color = HomeBackground) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = WindowInsets.statusBars
-                .asPaddingValues()
-                .let {
-                    PaddingValues(
-                        start = 24.dp,
-                        top = it.calculateTopPadding() + 18.dp,
-                        end = 24.dp,
-                        bottom = 34.dp
-                    )
-                },
+            contentPadding = WindowInsets.statusBars.asPaddingValues().let {
+                PaddingValues(
+                    start = 24.dp,
+                    top = it.calculateTopPadding() + 18.dp,
+                    end = 24.dp,
+                    bottom = 34.dp
+                )
+            },
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             item {
+                // 드릴다운 페이지에서는 좋아요 버튼 숨김
                 DetailTopBar(
                     isLiked = isLiked,
                     isMine = bucket?.isMine == true,
                     isEditing = isEditing,
+                    showLike = !isInDrillDown,
                     onBackClick = onBackClick,
                     onLikeClick = { isLiked = isLiked.not() },
                     onEditClick = { isEditing = isEditing.not() }
                 )
             }
             when {
-                uiState.isLoading -> {
-                    item {
-                        Text(
-                            text = "불러오는 중...",
-                            color = Muted,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                uiState.isLoading -> item {
+                    Text(text = "불러오는 중...", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
-
-                uiState.errorMessage != null -> {
-                    item {
-                        Text(
-                            text = uiState.errorMessage,
-                            color = Color(0xFFE04D5F),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                uiState.errorMessage != null -> item {
+                    Text(text = uiState.errorMessage, color = Color(0xFFE04D5F), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
-
                 bucket != null -> {
                     val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
-                    val completedCount = bucket.plans.count { it.isComplete }
-                    val progress = if (bucket.plans.isEmpty()) 0f else completedCount.toFloat() / bucket.plans.size
+                    val completedCount = bucket.smallGoals.count { it.isComplete }
+                    val progress = if (bucket.smallGoals.isEmpty()) 0f else completedCount.toFloat() / bucket.smallGoals.size
 
                     item {
                         BucketHeaderCard(
@@ -155,15 +185,39 @@ fun BucketDetailScreen(
                             completedCount = completedCount,
                             progress = progress,
                             likeCount = bucket.adjustedLikeCount(isLiked),
-                            isEditing = isEditing && bucket.isMine
+                            isEditing = isEditing && bucket.isMine,
                         )
                     }
+
                     item {
-                        PlanSection(
-                            plans = bucket.plans,
-                            accentColor = accentColor,
-                            isEditing = isEditing && bucket.isMine
-                        )
+                        val drillDownPlan = uiState.drillDownPlan
+                        if (drillDownPlan != null) {
+                            MandalaDetailView(
+                                bucketTitle = bucket.title,
+                                plan = drillDownPlan,
+                                accentColor = accentColor,
+                                isMine = bucket.isMine,
+                                onExitDrillDown = onExitDrillDown,
+                                onAddSmallGoal = { content, color, isComplete ->
+                                    onAddSmallGoal(drillDownPlan.id, content, color, isComplete)
+                                },
+                                onUpdateSmallGoal = { goalId, content, color, isComplete ->
+                                    onUpdateSmallGoal(drillDownPlan.id, goalId, content, color, isComplete)
+                                },
+                                onDeleteSmallGoal = { goalId ->
+                                    onDeleteSmallGoal(drillDownPlan.id, goalId)
+                                },
+                            )
+                        } else {
+                            MandalaSection(
+                                bucket = bucket,
+                                accentColor = accentColor,
+                                isMine = bucket.isMine,
+                                selectedCell = uiState.selectedMandalaCell,
+                                onSelectCell = onSelectMandalaCell,
+                                onDrillDown = onDrillDown,
+                            )
+                        }
                     }
                 }
             }
@@ -171,11 +225,14 @@ fun BucketDetailScreen(
     }
 }
 
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
+
 @Composable
 private fun DetailTopBar(
     isLiked: Boolean,
     isMine: Boolean,
     isEditing: Boolean,
+    showLike: Boolean,
     onBackClick: () -> Unit,
     onLikeClick: () -> Unit,
     onEditClick: () -> Unit
@@ -185,49 +242,44 @@ private fun DetailTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircleIconButton(
-            onClick = onBackClick,
-            content = { BackIcon(Modifier.size(22.dp)) }
-        )
+        CircleIconButton(onClick = onBackClick) { BackIcon(Modifier.size(22.dp)) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (isMine) {
-                CircleIconButton(
-                    onClick = onEditClick,
-                    content = {
-                        if (isEditing) {
-                            CheckIcon(
-                                modifier = Modifier.size(22.dp),
-                                color = Color(0xFF2F9B68)
-                            )
-                        } else {
-                            Image(
-                                painter = painterResource(R.drawable.ic_edit),
-                                contentDescription = null,
-                                modifier = Modifier.size(22.dp),
-                                colorFilter = ColorFilter.tint(Color(0xFF6E687D))
-                            )
-                        }
+                CircleIconButton(onClick = onEditClick) {
+                    if (isEditing) {
+                        CheckIcon(modifier = Modifier.size(22.dp), color = Color(0xFF2F9B68))
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.ic_edit),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            colorFilter = ColorFilter.tint(Color(0xFF6E687D))
+                        )
                     }
-                )
+                }
             }
-            CircleIconButton(
-                onClick = onLikeClick,
-                content = {
-                    HeartIcon(
+            if (showLike) {
+                CircleIconButton(onClick = onLikeClick) {
+                    Image(
+                        painter = painterResource(
+                            if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart
+                        ),
+                        contentDescription = null,
                         modifier = Modifier.size(22.dp),
-                        color = if (isLiked) Color(0xFFFF5D65) else Color(0xFF6E687D)
+                        colorFilter = if (isLiked) {
+                            null
+                        } else {
+                            ColorFilter.tint(Color(0xFF6E687D))
+                        }
                     )
                 }
-            )
+            }
         }
     }
 }
 
 @Composable
-private fun CircleIconButton(
-    onClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
+private fun CircleIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .size(42.dp)
@@ -236,10 +288,10 @@ private fun CircleIconButton(
             .background(Color.White)
             .border(1.dp, SoftLine, CircleShape),
         contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
+    ) { content() }
 }
+
+// ─── Header Card ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun BucketHeaderCard(
@@ -248,7 +300,7 @@ private fun BucketHeaderCard(
     completedCount: Int,
     progress: Float,
     likeCount: Int,
-    isEditing: Boolean
+    isEditing: Boolean,
 ) {
     var title by rememberSaveable(bucket.id, "title") { mutableStateOf(bucket.title) }
     var memo by rememberSaveable(bucket.id, "memo") { mutableStateOf(bucket.memo) }
@@ -266,104 +318,749 @@ private fun BucketHeaderCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CategoryChip(
-                category = bucket.category,
-                accentColor = accentColor
-            )
+            CategoryChip(category = bucket.category, accentColor = accentColor)
             LikeCount(likeCount = likeCount)
         }
         Spacer(Modifier.height(18.dp))
         if (isEditing) {
             OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = false,
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    color = Ink,
-                    fontSize = 24.sp,
-                    lineHeight = 30.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
+                value = title, onValueChange = { title = it },
+                modifier = Modifier.fillMaxWidth(), singleLine = false,
+                textStyle = TextStyle(color = Ink, fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.ExtraBold)
             )
         } else {
-            Text(
-                text = title,
-                color = Ink,
-                fontSize = 28.sp,
-                lineHeight = 34.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Text(text = title, color = Ink, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold)
         }
         Spacer(Modifier.height(14.dp))
         if (isEditing) {
             OutlinedTextField(
-                value = memo,
-                onValueChange = { memo = it },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    color = Color(0xFF635E72),
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                value = memo, onValueChange = { memo = it },
+                modifier = Modifier.fillMaxWidth(), minLines = 3,
+                textStyle = TextStyle(color = Color(0xFF635E72), fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold)
             )
         } else {
-            Text(
-                text = memo,
-                color = Color(0xFF635E72),
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(text = memo, color = Color(0xFF635E72), fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            InfoPill(
-                label = "시작일",
-                value = bucket.startDate.toKoreanDateText(),
-                modifier = Modifier.weight(1f)
-            )
-            InfoPill(
-                label = "달성률",
-                value = "$completedCount/${bucket.plans.size}",
-                modifier = Modifier.weight(1f)
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            InfoPill(label = "시작일", value = bucket.startDate.toKoreanDateText(), modifier = Modifier.weight(1f))
+            InfoPill(label = "달성률", value = "$completedCount/${bucket.smallGoals.size}", modifier = Modifier.weight(1f))
         }
         Spacer(Modifier.height(18.dp))
-        ProgressBar(
-            progress = progress,
-            accentColor = accentColor
-        )
+        ProgressBar(progress = progress, accentColor = accentColor)
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             UserAvatar(
-                profileImageUrl = bucket.profileImage,
-                username = bucket.username,
+                profileImageUrl = bucket.author.profileImgUrl,
+                username = bucket.author.username,
                 color = accentColor.copy(alpha = 0.18f),
                 textColor = accentColor,
                 size = 30
             )
             Spacer(Modifier.width(10.dp))
-            Text(
-                text = bucket.username,
-                color = Color(0xFF6F687E),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
+            Text(text = bucket.author.username, color = Color(0xFF6F687E), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+// ─── Mandala Grid ─────────────────────────────────────────────────────────────
+//
+// 3×3 배치 (index 기준):
+//   [0] [1] [2]      plans[0] plans[1] plans[2]
+//   [3] [4] [5]  →   plans[3]  CENTER  plans[4]
+//   [6] [7] [8]      plans[5] plans[6] plans[7]
+//
+// isMine=true  → 셀 탭 → 선택(하단 '만다라트 만들기' 버튼) → 버튼 탭 → 드릴다운
+// isMine=false → 셀 탭 → 바로 드릴다운 (읽기 전용)
+
+@Composable
+private fun MandalaSection(
+    bucket: BucketPostDetail,
+    accentColor: Color,
+    isMine: Boolean,
+    selectedCell: SmallGoal?,
+    onSelectCell: (SmallGoal) -> Unit,
+    onDrillDown: (SmallGoal) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "만다라트", color = Ink, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.width(8.dp))
+            Text(text = "${bucket.smallGoals.size}/8", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        MandalaGridView(
+            bucket = bucket,
+            accentColor = accentColor,
+            isMine = isMine,
+            selectedCell = selectedCell,
+            onSelectCell = onSelectCell,
+            onDrillDown = onDrillDown,
+        )
+    }
+}
+
+@Composable
+private fun MandalaGridView(
+    bucket: BucketPostDetail,
+    accentColor: Color,
+    isMine: Boolean,
+    selectedCell: SmallGoal?,
+    onSelectCell: (SmallGoal) -> Unit,
+    onDrillDown: (SmallGoal) -> Unit,
+) {
+    val plans = bucket.smallGoals.sortedBy { it.sortOrder }
+
+    // index 0..3 = plan 0..3 / index 4 = center / index 5..8 = plan 4..7
+    val cells: List<SmallGoal?> = buildList {
+        repeat(4) { add(plans.getOrNull(it)) }
+        add(null) // center
+        repeat(4) { add(plans.getOrNull(it + 4)) }
+    }
+
+    // 그리드 카드 + 선택 바를 하나의 흰색 카드로 통합 (연결된 느낌)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White)
+            .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
+    ) {
+        // 3×3 그리드
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            for (row in 0 until 3) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (col in 0 until 3) {
+                        val idx = row * 3 + col
+                        val plan = cells[idx]
+                        when {
+                            idx == 4 -> MandalaCenter(
+                                title = bucket.title,
+                                accentColor = accentColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                            plan != null -> MandalaPlanCell(
+                                plan = plan,
+                                isSelected = selectedCell?.id == plan.id,
+                                onClick = {
+                                    if (isMine) onSelectCell(plan) else onDrillDown(plan)
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            else -> MandalaEmptyPlanCell(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        // isMine=true이고 셀이 선택됐을 때: 구분선 + 선택 표시 + 만다라트 만들기 버튼
+        if (isMine && selectedCell != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(SoftLine)
+            )
+            MakeMandalaBar(
+                selectedPlan = selectedCell,
+                onMakeMandala = { onDrillDown(selectedCell) },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
             )
         }
     }
 }
 
+/** 선택된 계획 표시 + 만다라트 만들기 버튼 (카드 내부에 배치) */
 @Composable
-private fun CategoryChip(
-    category: String,
-    accentColor: Color
+private fun MakeMandalaBar(
+    selectedPlan: SmallGoal,
+    onMakeMandala: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val cellColor = selectedPlan.color.toComposeColor()
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(cellColor))
+            Text(
+                text = selectedPlan.content,
+                color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50.dp))
+                .background(Purple)
+                .clickable { onMakeMandala() }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text("⊞", color = Color.White, fontSize = 13.sp)
+            Text("만다라트 만들기", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/** 만다라트 그리드 중앙 셀 — 큰 목표 */
+@Composable
+private fun MandalaCenter(title: String, accentColor: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(accentColor)
+            .border(2.dp, accentColor, RoundedCornerShape(14.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(6.dp)) {
+            Text(text = "큰 목표", color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** 만다라트 핵심 목표 셀 — 선택 시 강조 테두리 */
+@Composable
+private fun MandalaPlanCell(
+    plan: SmallGoal,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cellColor = plan.color.toComposeColor()
+    val borderColor = if (isSelected) cellColor else cellColor.copy(alpha = 0.35f)
+    val borderWidth = if (isSelected) 2.dp else 1.5.dp
+    val bgColor = if (isSelected) cellColor.copy(alpha = 0.18f) else cellColor.copy(alpha = 0.10f)
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .background(bgColor)
+            .border(borderWidth, borderColor, RoundedCornerShape(14.dp))
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.align(Alignment.TopStart),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(cellColor))
+            if (plan.isComplete) {
+                Box(
+                    modifier = Modifier.size(14.dp).clip(CircleShape).background(cellColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✓", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            // 소목표가 있으면 '← 만다라트' 태그 표시
+            if (plan.todos.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(cellColor.copy(alpha = 0.15f))
+                        .border(0.5.dp, cellColor.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 3.dp, vertical = 1.dp)
+                ) {
+                    Text("← 만다라트", color = cellColor, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Text(
+            text = plan.content, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+        )
+    }
+}
+
+/** 빈 만다라트 슬롯 — 대시 테두리 + 원형 + 버튼 */
+@Composable
+private fun MandalaEmptyPlanCell(modifier: Modifier = Modifier) {
+    MandalaEmptyCell(onClick = null, showLabel = false, modifier = modifier)
+}
+
+// ─── Mandala Drill-Down ───────────────────────────────────────────────────────
+//
+// 3×3 배치 (index 기준):
+//   [0] [1] [2]      goals[0] goals[1] goals[2]
+//   [3] [4] [5]  →   goals[3]  CENTER  goals[4]
+//   [6] [7] [8]      goals[5] goals[6] goals[7]
+//
+// isMine=true  → 빈 셀 탭 → 소목표 추가 BottomSheet / 기존 셀 탭 → 편집 BottomSheet
+// isMine=false → 읽기 전용, BottomSheet 없음
+
+@Composable
+private fun MandalaDetailView(
+    bucketTitle: String,
+    plan: SmallGoal,
+    accentColor: Color,
+    isMine: Boolean,
+    onExitDrillDown: () -> Unit,
+    onAddSmallGoal: (content: String, color: String, isComplete: Boolean) -> Unit,
+    onUpdateSmallGoal: (goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit,
+    onDeleteSmallGoal: (goalId: Long) -> Unit,
+) {
+    var editTarget by remember { mutableStateOf<Todo?>(null) }
+    var showEditSheet by remember { mutableStateOf(false) }
+    var showAddSheet by remember { mutableStateOf(false) }
+
+    val smallGoals = plan.todos.take(8)
+    val doneCount = plan.todos.count { it.isComplete }
+
+    // index 0..3 = goal 0..3 / index 4 = center(plan) / index 5..8 = goal 4..7
+    val cells: List<Todo?> = buildList {
+        repeat(4) { add(smallGoals.getOrNull(it)) }
+        add(null) // center
+        repeat(4) { add(smallGoals.getOrNull(it + 4)) }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // 브레드크럼
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = bucketTitle, color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Text(" › ", color = Muted, fontSize = 13.sp)
+            Text(
+                text = plan.content, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // 제목 + 달성률
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "'${plan.content}'의 만다라트",
+                color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "$doneCount/${plan.todos.size}",
+                color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold
+            )
+        }
+
+        // 3×3 그리드
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+                .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            for (row in 0 until 3) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (col in 0 until 3) {
+                        val idx = row * 3 + col
+                        val goal = cells[idx]
+                        when {
+                            idx == 4 -> MandalaCenter(
+                                title = plan.content,
+                                accentColor = accentColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                            goal != null -> MandalaSmallGoalCell(
+                                goal = goal,
+                                onClick = {
+                                    if (isMine) {
+                                        editTarget = goal
+                                        showEditSheet = true
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            else -> MandalaEmptySmallGoalCell(
+                                onClick = { if (isMine) showAddSheet = true },
+                                isMine = isMine,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 큰 목표로 돌아가기
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White)
+                .border(1.dp, SoftLine, RoundedCornerShape(16.dp))
+                .clickable { onExitDrillDown() }
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                MiniMandalaIcon(accentColor = accentColor)
+                Column {
+                    Text(text = "큰 목표로 돌아가기", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = bucketTitle, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Text(text = "›", color = Muted, fontSize = 20.sp)
+        }
+    }
+
+    // 기존 소목표 편집 (isMine=true만 열림)
+    if (showEditSheet && editTarget != null) {
+        SmallGoalBottomSheet(
+            existingGoal = editTarget,
+            onDismiss = { showEditSheet = false; editTarget = null },
+            onSave = { content, color, isComplete ->
+                onUpdateSmallGoal(editTarget!!.id, content, color, isComplete)
+                showEditSheet = false; editTarget = null
+            },
+            onDelete = {
+                onDeleteSmallGoal(editTarget!!.id)
+                showEditSheet = false; editTarget = null
+            }
+        )
+    }
+
+    // 새 소목표 추가 (isMine=true만 열림)
+    if (showAddSheet) {
+        SmallGoalBottomSheet(
+            existingGoal = null,
+            onDismiss = { showAddSheet = false },
+            onSave = { content, color, isComplete ->
+                onAddSmallGoal(content, color, isComplete)
+                showAddSheet = false
+            },
+            onDelete = {}
+        )
+    }
+}
+
+@Composable
+private fun MandalaSmallGoalCell(goal: Todo, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val cellColor = goal.color.toComposeColor()
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .background(cellColor.copy(alpha = 0.10f))
+            .border(1.5.dp, cellColor.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.align(Alignment.TopStart),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(cellColor))
+            if (goal.isComplete) {
+                Box(
+                    modifier = Modifier.size(14.dp).clip(CircleShape).background(cellColor),
+                    contentAlignment = Alignment.Center
+                ) { Text("✓", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+        Text(
+            text = goal.content, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+        )
+    }
+}
+
+/** 빈 소목표 슬롯 — isMine=true면 탭 가능, false면 비활성 */
+@Composable
+private fun MandalaEmptySmallGoalCell(onClick: () -> Unit, isMine: Boolean, modifier: Modifier = Modifier) {
+    MandalaEmptyCell(
+        onClick = if (isMine) onClick else null,
+        showLabel = true,
+        modifier = modifier
+    )
+}
+
+/**
+ * 공용 빈 셀 — 대시 테두리 + 원형 + 버튼
+ * onClick=null 이면 비클릭/비활성 스타일
+ * showLabel=true 이면 하단에 "작은 목표" 레이블 표시
+ */
+@Composable
+private fun MandalaEmptyCell(
+    onClick: (() -> Unit)?,
+    showLabel: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val isActive = onClick != null
+    val activeOnClick = onClick
+    val dashColor = if (isActive) Color(0xFFD8CEF2) else Color(0xFFE2DDEA)
+    val contentColor = if (isActive) Color(0xFF8F899D) else Color(0xFFC7C1D2)
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(24.dp))
+            .then(if (activeOnClick != null) Modifier.clickable(onClick = activeOnClick) else Modifier)
+            .background(Color(0xFFFCFAFF))
+            .drawBehind {
+                drawRoundRect(
+                    color = dashColor,
+                    size = size,
+                    cornerRadius = CornerRadius(24.dp.toPx()),
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(
+                            floatArrayOf(7.dp.toPx(), 5.dp.toPx())
+                        )
+                    )
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // 원형 + 버튼
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(1.5.dp, dashColor.copy(alpha = 0.72f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+",
+                    color = contentColor,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 26.sp
+                )
+            }
+            if (showLabel) {
+                Text(
+                    text = "작은 목표",
+                    color = contentColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+
+/** 큰 목표로 돌아가기 카드의 미니 9칸 아이콘 */
+@Composable
+private fun MiniMandalaIcon(accentColor: Color) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(accentColor.copy(alpha = 0.10f))
+            .border(1.dp, accentColor.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+            .padding(5.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            for (r in 0 until 3) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    for (c in 0 until 3) {
+                        val isCenter = r == 1 && c == 1
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(if (isCenter) accentColor else accentColor.copy(alpha = 0.25f))
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Small Goal BottomSheet ───────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SmallGoalBottomSheet(
+    existingGoal: Todo?,
+    onDismiss: () -> Unit,
+    onSave: (content: String, color: String, isComplete: Boolean) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var name by remember { mutableStateOf(existingGoal?.content ?: "") }
+    val selectedColor = existingGoal?.color ?: MANDALA_COLORS[0]
+    var isComplete by remember { mutableStateOf(existingGoal?.isComplete ?: false) }
+    val canSave = name.isNotBlank()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = Color.White,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(28.dp)
+        ) {
+            Text(
+                text = "계획",
+                color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(66.dp)) {
+                    Text("이름", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BasicTextField(
+                            value = name,
+                            onValueChange = { if (it.length <= 20) name = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp),
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = Ink,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                            decorationBox = { innerTextField ->
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (name.isEmpty()) {
+                                        Text(
+                                            text = "작은 목표를 입력해 주세요",
+                                            color = Color(0xFFB0AABC),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(Color(0xFF4A4652))
+                        )
+                        Text(
+                            text = "${name.length} / 20",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End,
+                            color = Color(0xFF4A4652),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("달성 상태", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isComplete) "달성" else "미달성",
+                            color = Ink,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Switch(
+                            checked = isComplete,
+                            onCheckedChange = { isComplete = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Purple,
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = Color(0xFFD7DAE0),
+                                uncheckedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(22.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (canSave) Purple else Color(0xFFD7DAE0))
+                    .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("저장", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            if (existingGoal != null) {
+                Text(
+                    text = "삭제",
+                    color = Color(0xFFE04D5F),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onDelete() }
+                        .padding(vertical = 12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+// ─── Shared composables ───────────────────────────────────────────────────────
+
+@Composable
+private fun CategoryChip(category: String, accentColor: Color) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50.dp))
@@ -372,19 +1069,9 @@ private fun CategoryChip(
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(7.dp)
-                .clip(CircleShape)
-                .background(accentColor)
-        )
+        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(accentColor))
         Spacer(Modifier.width(7.dp))
-        Text(
-            text = category,
-            color = accentColor,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Text(text = category, color = accentColor, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -399,21 +1086,12 @@ private fun LikeCount(likeCount: Int) {
     ) {
         Text("♥", color = Color(0xFFFF5D65), fontSize = 13.sp)
         Spacer(Modifier.width(5.dp))
-        Text(
-            text = likeCount.toString(),
-            color = Ink,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Text(text = likeCount.toString(), color = Ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
-private fun InfoPill(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
+private fun InfoPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
@@ -421,250 +1099,56 @@ private fun InfoPill(
             .border(1.dp, SoftLine, RoundedCornerShape(18.dp))
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Text(
-            text = label,
-            color = Muted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Text(text = label, color = Muted, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(5.dp))
-        Text(
-            text = value,
-            color = Ink,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.ExtraBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Text(text = value, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
-private fun ProgressBar(
-    progress: Float,
-    accentColor: Color
-) {
+private fun ProgressBar(progress: Float, accentColor: Color) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(9.dp)
+            .fillMaxWidth().height(9.dp)
             .clip(RoundedCornerShape(50.dp))
             .background(accentColor.copy(alpha = 0.14f))
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(progress.coerceIn(0f, 1f))
-                .height(9.dp)
+                .fillMaxWidth(progress.coerceIn(0f, 1f)).height(9.dp)
                 .clip(RoundedCornerShape(50.dp))
                 .background(accentColor)
         )
     }
 }
 
-@Composable
-private fun PlanSection(
-    plans: List<PostPlan>,
-    accentColor: Color,
-    isEditing: Boolean
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        SectionTitle(
-            title = "세부 계획",
-            count = plans.size
-        )
-        plans.sortedBy { it.sortOrder }.forEach { plan ->
-            PlanChecklistItem(
-                plan = plan,
-                accentColor = accentColor,
-                isEditing = isEditing
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(
-    title: String,
-    count: Int
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            color = Ink,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = count.toString(),
-            color = Muted,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
-
-@Composable
-private fun PlanChecklistItem(
-    plan: PostPlan,
-    accentColor: Color,
-    isEditing: Boolean
-) {
-    var checked by rememberSaveable(plan.id) { mutableStateOf(plan.isComplete) }
-    var content by rememberSaveable(plan.id, "content") { mutableStateOf(plan.content) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(enabled = isEditing) { checked = checked.not() }
-            .background(Color.White)
-            .border(1.dp, SoftLine, RoundedCornerShape(18.dp))
-            .padding(horizontal = 12.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = if (isEditing) {
-                { checked = it }
-            } else {
-                null
-            },
-            enabled = isEditing,
-            colors = CheckboxDefaults.colors(
-                checkedColor = accentColor,
-                uncheckedColor = Color(0xFFB7B0C5),
-                checkmarkColor = Color.White
-            )
-        )
-        Spacer(Modifier.width(8.dp))
-        if (isEditing) {
-            OutlinedTextField(
-                value = content,
-                onValueChange = { content = it },
-                modifier = Modifier.weight(1f),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    color = if (checked) Color(0xFF8C8697) else Ink,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 22.sp
-                )
-            )
-        } else {
-            Text(
-                text = content,
-                color = if (checked) Color(0xFF8C8697) else Ink,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 22.sp,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Text(
-            text = "%02d".format(plan.sortOrder),
-            color = accentColor.copy(alpha = 0.7f),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
+// ─── Icon composables ─────────────────────────────────────────────────────────
 
 @Composable
 private fun BackIcon(modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val stroke = 2.4.dp.toPx()
-        drawLine(
-            color = Ink,
-            start = Offset(size.width * 0.62f, size.height * 0.2f),
-            end = Offset(size.width * 0.34f, size.height * 0.5f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = Ink,
-            start = Offset(size.width * 0.34f, size.height * 0.5f),
-            end = Offset(size.width * 0.62f, size.height * 0.8f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
+        drawLine(Ink, Offset(size.width * 0.62f, size.height * 0.2f), Offset(size.width * 0.34f, size.height * 0.5f), stroke, StrokeCap.Round)
+        drawLine(Ink, Offset(size.width * 0.34f, size.height * 0.5f), Offset(size.width * 0.62f, size.height * 0.8f), stroke, StrokeCap.Round)
     }
 }
 
 @Composable
-private fun CheckIcon(
-    modifier: Modifier = Modifier,
-    color: Color
-) {
+private fun CheckIcon(modifier: Modifier = Modifier, color: Color) {
     Canvas(modifier) {
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.20f, size.height * 0.52f),
-            end = Offset(size.width * 0.42f, size.height * 0.73f),
-            strokeWidth = 2.6.dp.toPx(),
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.42f, size.height * 0.73f),
-            end = Offset(size.width * 0.82f, size.height * 0.28f),
-            strokeWidth = 2.6.dp.toPx(),
-            cap = StrokeCap.Round
-        )
+        drawLine(color, Offset(size.width * 0.20f, size.height * 0.52f), Offset(size.width * 0.42f, size.height * 0.73f), 2.6.dp.toPx(), StrokeCap.Round)
+        drawLine(color, Offset(size.width * 0.42f, size.height * 0.73f), Offset(size.width * 0.82f, size.height * 0.28f), 2.6.dp.toPx(), StrokeCap.Round)
     }
 }
 
-@Composable
-private fun HeartIcon(
-    modifier: Modifier = Modifier,
-    color: Color
-) {
-    Canvas(modifier) {
-        val stroke = Stroke(width = 2.1.dp.toPx(), cap = StrokeCap.Round)
-        drawArc(
-            color = color,
-            startAngle = 140f,
-            sweepAngle = 230f,
-            useCenter = false,
-            topLeft = Offset(size.width * 0.05f, size.height * 0.13f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.45f, size.height * 0.45f),
-            style = stroke
-        )
-        drawArc(
-            color = color,
-            startAngle = 170f,
-            sweepAngle = 230f,
-            useCenter = false,
-            topLeft = Offset(size.width * 0.50f, size.height * 0.13f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.45f, size.height * 0.45f),
-            style = stroke
-        )
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.12f, size.height * 0.52f),
-            end = Offset(size.width * 0.50f, size.height * 0.86f),
-            strokeWidth = stroke.width,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.88f, size.height * 0.52f),
-            end = Offset(size.width * 0.50f, size.height * 0.86f),
-            strokeWidth = stroke.width,
-            cap = StrokeCap.Round
-        )
-    }
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-private fun BucketPostDetail.adjustedLikeCount(isLiked: Boolean): Int =
-    when {
-        isLiked && !this.isLiked -> likeCount + 1
-        !isLiked && this.isLiked -> (likeCount - 1).coerceAtLeast(0)
-        else -> likeCount
-    }
+private fun BucketPostDetail.adjustedLikeCount(isLiked: Boolean): Int = when {
+    isLiked && !this.isLiked -> likeCount + 1
+    !isLiked && this.isLiked -> (likeCount - 1).coerceAtLeast(0)
+    else -> likeCount
+}
 
 private fun String.toKoreanDateText(): String {
     val parts = split("-")
@@ -674,39 +1158,94 @@ private fun String.toKoreanDateText(): String {
     return "${parts[0]}년 ${month}월 ${day}일"
 }
 
+fun String.toComposeColor(): Color = try {
+    Color(android.graphics.Color.parseColor(this))
+} catch (e: Exception) {
+    Color(0xFF8D6BE8)
+}
+
+// ─── Previews ─────────────────────────────────────────────────────────────────
+
 @Preview(showBackground = true, widthDp = 430, heightDp = 932)
 @Composable
-private fun BucketDetailScreenPreview() {
+private fun MandalaGridPreview() {
+    val plans = listOf(
+        SmallGoal(id = 1, sortOrder = 1, content = "면접 준비", isComplete = true, color = "#8D6BE8",
+            todos = listOf(Todo(11, "모의면접", "#8D6BE8", true))),
+        SmallGoal(id = 2, sortOrder = 2, content = "자기소개서", isComplete = false, color = "#E8736B"),
+        SmallGoal(id = 3, sortOrder = 3, content = "포트폴리오", isComplete = false, color = "#E8A06B"),
+        SmallGoal(id = 4, sortOrder = 4, content = "인적성", isComplete = false, color = "#6BE88D"),
+        SmallGoal(id = 5, sortOrder = 5, content = "CS스터디", isComplete = true, color = "#E8C96B"),
+        SmallGoal(id = 6, sortOrder = 6, content = "체력관리", isComplete = false, color = "#6BB8E8"),
+        SmallGoal(id = 7, sortOrder = 7, content = "어학성적", isComplete = false, color = "#6BE8D4"),
+        SmallGoal(id = 8, sortOrder = 8, content = "코딩테스트", isComplete = false, color = "#E86BB8"),
+    )
     BucketappTheme(dynamicColor = false) {
         BucketDetailScreen(
             uiState = BucketDetailUiState(
                 bucketDetail = BucketPostDetail(
-                    id = 13,
-                    title = "마라톤 풀코스 완주하기",
-                    memo = "춘천 마라톤에서 서브4 달성하는 그 날까지!",
-                    category = "운동",
-                    categoryColor = "#2F9B68",
-                    likeCount = 243,
-                    startDate = "2026-09-01",
-                    userId = 2,
-                    username = "testuser",
-                    profileImage = "https://...",
-                    plans = listOf(
-                        PostPlan(
-                            id = 101,
-                            sortOrder = 1,
-                            content = "하프 마라톤 1회 완주",
-                            isComplete = false
-                        ),
-                        PostPlan(
-                            id = 102,
-                            sortOrder = 2,
-                            content = "런닝크루 가입",
-                            isComplete = true
-                        )
-                    ),
-                    isLiked = true,
-                    isMine = true
+                    id = 13, title = "대기업 입사",
+                    memo = "내년 상반기 공채 합격이 목표.",
+                    category = "학습", categoryColor = "#8D6BE8",
+                    likeCount = 243, startDate = "2026-05-13",
+                    author = Author(userId = 2, username = "jiwon", profileImgUrl = ""),
+                    smallGoals = plans, isLiked = true, isMine = true
+                )
+            ),
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 430, heightDp = 932)
+@Composable
+private fun MandalaGridSelectedPreview() {
+    val plans = listOf(
+        SmallGoal(id = 1, sortOrder = 1, content = "면접 준비", isComplete = true, color = "#8D6BE8",
+            todos = listOf(Todo(11, "모의면접", "#8D6BE8", true))),
+        SmallGoal(id = 2, sortOrder = 2, content = "자기소개서", isComplete = false, color = "#E8736B"),
+        SmallGoal(id = 3, sortOrder = 3, content = "포트폴리오", isComplete = false, color = "#E8A06B"),
+    )
+    BucketappTheme(dynamicColor = false) {
+        BucketDetailScreen(
+            uiState = BucketDetailUiState(
+                selectedMandalaCell = plans[0],
+                bucketDetail = BucketPostDetail(
+                    id = 13, title = "대기업 입사", memo = "내년 상반기 공채 합격이 목표.",
+                    category = "학습", categoryColor = "#8D6BE8",
+                    likeCount = 243, startDate = "2026-05-13",
+                    author = Author(userId = 2, username = "jiwon", profileImgUrl = ""),
+                    smallGoals = plans, isLiked = true, isMine = true
+                )
+            ),
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 430, heightDp = 932)
+@Composable
+private fun MandalaDetailPreview() {
+    val plan = SmallGoal(
+        id = 1, sortOrder = 1, content = "면접 준비", isComplete = true, color = "#8D6BE8",
+        todos = listOf(
+            Todo(11, "모의면접", "#E8736B", true),
+            Todo(12, "자기 PR 정리", "#8D6BE8", true),
+            Todo(13, "꼬리질문 대비", "#6BE88D", false),
+            Todo(14, "AI 면접", "#6BB8E8", false),
+            Todo(15, "면접 복장", "#E8A06B", false),
+        )
+    )
+    BucketappTheme(dynamicColor = false) {
+        BucketDetailScreen(
+            uiState = BucketDetailUiState(
+                drillDownPlan = plan,
+                bucketDetail = BucketPostDetail(
+                    id = 13, title = "대기업 입사", memo = "",
+                    category = "학습", categoryColor = "#8D6BE8",
+                    likeCount = 243, startDate = "2026-05-13",
+                    author = Author(userId = 2, username = "jiwon", profileImgUrl = ""),
+                    smallGoals = listOf(plan), isLiked = true, isMine = true
                 )
             ),
             onBackClick = {}
