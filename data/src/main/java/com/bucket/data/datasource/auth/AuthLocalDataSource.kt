@@ -39,6 +39,12 @@ class AuthLocalDataSource @Inject constructor(
         }
     }
 
+    suspend fun saveAccessToken(accessToken: String) {
+        dataStore.edit { preferences ->
+            preferences[ACCESS_TOKEN] = accessToken
+        }
+    }
+
     suspend fun clear() {
         dataStore.edit { preferences ->
             preferences.remove(USER_ID)

@@ -30,7 +30,25 @@ data class BucketAppState(
 
     fun navigateToHomeAfterLogin() {
         navController.navigate(BucketRoute.Home.route) {
-            popUpTo(BucketRoute.Login.route) {
+            popUpTo(navController.graph.id) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun navigateToLoginAfterAutoLoginFailure() {
+        navController.navigate(BucketRoute.Login.route) {
+            popUpTo(navController.graph.id) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun navigateToLoginAfterLogout() {
+        navController.navigate(BucketRoute.Login.route) {
+            popUpTo(navController.graph.id) {
                 inclusive = true
             }
             launchSingleTop = true

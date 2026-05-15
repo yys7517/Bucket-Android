@@ -20,6 +20,7 @@ import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.detail.BucketDetailRoute
 import com.bucket.presentation.ui.home.HomeRoute
 import com.bucket.presentation.ui.login.LoginRoute
+import com.bucket.presentation.ui.splash.SplashRoute
 
 @Composable
 private fun PlaceholderScreen(title: String) {
@@ -43,11 +44,17 @@ fun BucketNavHost(
 ) {
     NavHost(
         navController = appState.navController,
-        startDestination = BucketRoute.Login.route,
+        startDestination = BucketRoute.Splash.route,
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
     ) {
+        composable(BucketRoute.Splash.route) {
+            SplashRoute(
+                onAutoLoginSuccess = appState::navigateToHomeAfterLogin,            // 자동 로그인 성공 시, 홈 화면으로
+                onAutoLoginFailure = appState::navigateToLoginAfterAutoLoginFailure // 자동 로그인 실패 시, 로그인 화면으로
+            )
+        }
         composable(BucketRoute.Login.route) {
             LoginRoute(onLoginSuccess = appState::navigateToHomeAfterLogin)
         }

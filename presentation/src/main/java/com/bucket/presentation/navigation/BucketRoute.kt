@@ -4,6 +4,7 @@ sealed class BucketRoute(
     val route: String,
     val label: String
 ) {
+    data object Splash : BucketRoute("splash", "스플래시")
     data object Login : BucketRoute("login", "로그인")
     data object Category : BucketRoute("category", "카테고리")
     data object Home : BucketRoute("home", "홈")
