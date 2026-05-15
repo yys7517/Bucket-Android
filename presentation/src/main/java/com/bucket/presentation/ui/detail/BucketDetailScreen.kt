@@ -1,5 +1,6 @@
 package com.bucket.presentation.ui.detail
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,13 +23,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -37,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +53,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -62,6 +69,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -80,6 +88,7 @@ import com.bucket.presentation.ui.home.component.categoryAccent
 import com.example.domain.model.post.BucketPostDetail
 import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.post.Todo
+import androidx.core.graphics.toColorInt
 
 // ─── 만다라트 8가지 선택 색상 ─────────────────────────────────────────────────
 
@@ -111,7 +120,8 @@ fun BucketDetailRoute(
         onSelectMandalaCell = viewModel::selectMandalaCell,
         onDrillDown = viewModel::drillDown,
         onExitDrillDown = viewModel::exitDrillDown,
-        onAddSmallGoal = viewModel::addSmallGoal,
+        onAddPlan = { content, color, sortOrder -> viewModel.addPlan(content, color, sortOrder) },
+        onAddSmallGoal = { planId, content, color, isComplete, position -> viewModel.addSmallGoal(planId, content, color, isComplete, position) },
         onUpdateSmallGoal = viewModel::updateSmallGoal,
         onDeleteSmallGoal = viewModel::deleteSmallGoal,
     )
@@ -126,13 +136,13 @@ fun BucketDetailScreen(
     onSelectMandalaCell: (SmallGoal) -> Unit = {},
     onDrillDown: (SmallGoal) -> Unit = {},
     onExitDrillDown: () -> Unit = {},
-    onAddSmallGoal: (planId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _ -> },
+    onAddPlan: (content: String, color: String, sortOrder: Int) -> Unit = { _, _, _ -> },
+    onAddSmallGoal: (planId: Long, content: String, color: String, isComplete: Boolean, position: Int) -> Unit = { _, _, _, _, _ -> },
     onUpdateSmallGoal: (planId: Long, goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _, _ -> },
     onDeleteSmallGoal: (planId: Long, goalId: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val bucket = uiState.bucketDetail
-    val isInDrillDown = uiState.drillDownPlan != null
 
     var isLiked by rememberSaveable(bucket?.id, bucket?.isLiked) {
         mutableStateOf(bucket?.isLiked ?: false)
@@ -141,8 +151,24 @@ fun BucketDetailScreen(
         mutableStateOf(false)
     }
 
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val selectedCell = uiState.selectedMandalaCell
+    LaunchedEffect(selectedCell) {
+        if (selectedCell != null) {
+            listState.animateScrollBy(with(density) { 120.dp.toPx() })
+        }
+    }
+    val drillDownPlan = uiState.drillDownPlan
+    LaunchedEffect(drillDownPlan) {
+        if (drillDownPlan != null) {
+            listState.animateScrollBy(with(density) { 160.dp.toPx() })
+        }
+    }
+
     Surface(modifier = modifier.fillMaxSize(), color = HomeBackground) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = WindowInsets.statusBars.asPaddingValues().let {
                 PaddingValues(
@@ -155,16 +181,7 @@ fun BucketDetailScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             item {
-                // 드릴다운 페이지에서는 좋아요 버튼 숨김
-                DetailTopBar(
-                    isLiked = isLiked,
-                    isMine = bucket?.isMine == true,
-                    isEditing = isEditing,
-                    showLike = !isInDrillDown,
-                    onBackClick = onBackClick,
-                    onLikeClick = { isLiked = isLiked.not() },
-                    onEditClick = { isEditing = isEditing.not() }
-                )
+                DetailTopBar(onBackClick = onBackClick)
             }
             when {
                 uiState.isLoading -> item {
@@ -185,7 +202,11 @@ fun BucketDetailScreen(
                             completedCount = completedCount,
                             progress = progress,
                             likeCount = bucket.adjustedLikeCount(isLiked),
+                            isMine = bucket.isMine,
+                            isLiked = isLiked,
                             isEditing = isEditing && bucket.isMine,
+                            onLikeClick = { isLiked = isLiked.not() },
+                            onEditClick = { isEditing = isEditing.not() },
                         )
                     }
 
@@ -198,8 +219,8 @@ fun BucketDetailScreen(
                                 accentColor = accentColor,
                                 isMine = bucket.isMine,
                                 onExitDrillDown = onExitDrillDown,
-                                onAddSmallGoal = { content, color, isComplete ->
-                                    onAddSmallGoal(drillDownPlan.id, content, color, isComplete)
+                                onAddSmallGoal = { content, color, isComplete, position ->
+                                    onAddSmallGoal(drillDownPlan.id, content, color, isComplete, position)
                                 },
                                 onUpdateSmallGoal = { goalId, content, color, isComplete ->
                                     onUpdateSmallGoal(drillDownPlan.id, goalId, content, color, isComplete)
@@ -216,6 +237,7 @@ fun BucketDetailScreen(
                                 selectedCell = uiState.selectedMandalaCell,
                                 onSelectCell = onSelectMandalaCell,
                                 onDrillDown = onDrillDown,
+                                onAddPlan = onAddPlan,
                             )
                         }
                     }
@@ -228,53 +250,9 @@ fun BucketDetailScreen(
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun DetailTopBar(
-    isLiked: Boolean,
-    isMine: Boolean,
-    isEditing: Boolean,
-    showLike: Boolean,
-    onBackClick: () -> Unit,
-    onLikeClick: () -> Unit,
-    onEditClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+private fun DetailTopBar(onBackClick: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth()) {
         CircleIconButton(onClick = onBackClick) { BackIcon(Modifier.size(22.dp)) }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (isMine) {
-                CircleIconButton(onClick = onEditClick) {
-                    if (isEditing) {
-                        CheckIcon(modifier = Modifier.size(22.dp), color = Color(0xFF2F9B68))
-                    } else {
-                        Image(
-                            painter = painterResource(R.drawable.ic_edit),
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                            colorFilter = ColorFilter.tint(Color(0xFF6E687D))
-                        )
-                    }
-                }
-            }
-            if (showLike) {
-                CircleIconButton(onClick = onLikeClick) {
-                    Image(
-                        painter = painterResource(
-                            if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart
-                        ),
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                        colorFilter = if (isLiked) {
-                            null
-                        } else {
-                            ColorFilter.tint(Color(0xFF6E687D))
-                        }
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -300,7 +278,11 @@ private fun BucketHeaderCard(
     completedCount: Int,
     progress: Float,
     likeCount: Int,
+    isMine: Boolean,
+    isLiked: Boolean,
     isEditing: Boolean,
+    onLikeClick: () -> Unit,
+    onEditClick: () -> Unit,
 ) {
     var title by rememberSaveable(bucket.id, "title") { mutableStateOf(bucket.title) }
     var memo by rememberSaveable(bucket.id, "memo") { mutableStateOf(bucket.memo) }
@@ -319,7 +301,26 @@ private fun BucketHeaderCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             CategoryChip(category = bucket.category, accentColor = accentColor)
-            LikeCount(likeCount = likeCount)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isMine) {
+                    CircleIconButton(onClick = onEditClick) {
+                        if (isEditing) {
+                            CheckIcon(modifier = Modifier.size(20.dp), color = Color(0xFF2F9B68))
+                        } else {
+                            Image(
+                                painter = painterResource(R.drawable.ic_edit),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                colorFilter = ColorFilter.tint(Color(0xFF6E687D))
+                            )
+                        }
+                    }
+                }
+                LikeButton(isLiked = isLiked, likeCount = likeCount, onLikeClick = onLikeClick)
+            }
         }
         Spacer(Modifier.height(18.dp))
         if (isEditing) {
@@ -347,7 +348,7 @@ private fun BucketHeaderCard(
             InfoPill(label = "달성률", value = "$completedCount/${bucket.smallGoals.size}", modifier = Modifier.weight(1f))
         }
         Spacer(Modifier.height(18.dp))
-        ProgressBar(progress = progress, accentColor = accentColor)
+        ProgressBar(progress = progress)
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             UserAvatar(
@@ -381,10 +382,11 @@ private fun MandalaSection(
     selectedCell: SmallGoal?,
     onSelectCell: (SmallGoal) -> Unit,
     onDrillDown: (SmallGoal) -> Unit,
+    onAddPlan: (content: String, color: String, sortOrder: Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "만다라트", color = Ink, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+            Text(text = "간다라트", color = Ink, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
             Spacer(Modifier.width(8.dp))
             Text(text = "${bucket.smallGoals.size}/8", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
         }
@@ -395,6 +397,7 @@ private fun MandalaSection(
             selectedCell = selectedCell,
             onSelectCell = onSelectCell,
             onDrillDown = onDrillDown,
+            onAddPlan = onAddPlan,
         )
     }
 }
@@ -407,7 +410,10 @@ private fun MandalaGridView(
     selectedCell: SmallGoal?,
     onSelectCell: (SmallGoal) -> Unit,
     onDrillDown: (SmallGoal) -> Unit,
+    onAddPlan: (content: String, color: String, sortOrder: Int) -> Unit,
 ) {
+    var showAddPlanSheet by remember { mutableStateOf(false) }
+    var pendingSortOrder by remember { mutableStateOf(1) }
     val plans = bucket.smallGoals.sortedBy { it.sortOrder }
 
     // index 0..3 = plan 0..3 / index 4 = center / index 5..8 = plan 4..7
@@ -438,6 +444,7 @@ private fun MandalaGridView(
                         when {
                             idx == 4 -> MandalaCenter(
                                 title = bucket.title,
+                                label = "큰 목표",
                                 accentColor = accentColor,
                                 modifier = Modifier.weight(1f)
                             )
@@ -445,11 +452,22 @@ private fun MandalaGridView(
                                 plan = plan,
                                 isSelected = selectedCell?.id == plan.id,
                                 onClick = {
-                                    if (isMine) onSelectCell(plan) else onDrillDown(plan)
+                                    when {
+                                        !isMine -> onDrillDown(plan)
+                                        plan.todos.isNotEmpty() -> onDrillDown(plan)
+                                        else -> onSelectCell(plan)
+                                    }
                                 },
                                 modifier = Modifier.weight(1f)
                             )
-                            else -> MandalaEmptyPlanCell(modifier = Modifier.weight(1f))
+                            else -> {
+                                val targetIndex = if (idx < 4) idx else idx - 1
+                                MandalaEmptyPlanCell(
+                                    isMine = isMine,
+                                    onAdd = { pendingSortOrder = targetIndex; showAddPlanSheet = true },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -470,6 +488,16 @@ private fun MandalaGridView(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
             )
         }
+    }
+
+    if (showAddPlanSheet) {
+        PlanBottomSheet(
+            onDismiss = { showAddPlanSheet = false },
+            onSave = { content, color ->
+                onAddPlan(content, color, pendingSortOrder)
+                showAddPlanSheet = false
+            }
+        )
     }
 }
 
@@ -516,20 +544,31 @@ private fun MakeMandalaBar(
 
 /** 만다라트 그리드 중앙 셀 — 큰 목표 */
 @Composable
-private fun MandalaCenter(title: String, accentColor: Color, modifier: Modifier = Modifier) {
+private fun MandalaCenter(title: String, label: String, accentColor: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(14.dp))
             .background(accentColor)
-            .border(2.dp, accentColor, RoundedCornerShape(14.dp)),
-        contentAlignment = Alignment.Center
+            .border(2.dp, accentColor, RoundedCornerShape(14.dp))
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(6.dp)) {
-            Text(text = "큰 목표", color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(2.dp))
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(Color.White.copy(alpha = 0.28f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(text = label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+            }
             Text(
-                text = title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold,
+                text = title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis
             )
         }
@@ -551,6 +590,7 @@ private fun MandalaPlanCell(
 
     Box(
         modifier = modifier
+            .alpha(if (plan.isComplete) 0.45f else 1f)
             .aspectRatio(1f)
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
@@ -564,39 +604,25 @@ private fun MandalaPlanCell(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(cellColor))
-            if (plan.isComplete) {
-                Box(
-                    modifier = Modifier.size(14.dp).clip(CircleShape).background(cellColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("✓", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            // 소목표가 있으면 '← 만다라트' 태그 표시
-            if (plan.todos.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(cellColor.copy(alpha = 0.15f))
-                        .border(0.5.dp, cellColor.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 3.dp, vertical = 1.dp)
-                ) {
-                    Text("← 만다라트", color = cellColor, fontSize = 7.sp, fontWeight = FontWeight.Bold)
-                }
-            }
         }
         Text(
-            text = plan.content, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            text = plan.content,
+            color = Ink,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            textDecoration = if (plan.isComplete) TextDecoration.LineThrough else TextDecoration.None,
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth()
         )
     }
 }
 
 /** 빈 만다라트 슬롯 — 대시 테두리 + 원형 + 버튼 */
 @Composable
-private fun MandalaEmptyPlanCell(modifier: Modifier = Modifier) {
-    MandalaEmptyCell(onClick = null, showLabel = false, modifier = modifier)
+private fun MandalaEmptyPlanCell(isMine: Boolean, onAdd: () -> Unit, modifier: Modifier = Modifier) {
+    MandalaEmptyCell(onClick = if (isMine) onAdd else null, showPlus = isMine, modifier = modifier)
 }
 
 // ─── Mandala Drill-Down ───────────────────────────────────────────────────────
@@ -616,13 +642,14 @@ private fun MandalaDetailView(
     accentColor: Color,
     isMine: Boolean,
     onExitDrillDown: () -> Unit,
-    onAddSmallGoal: (content: String, color: String, isComplete: Boolean) -> Unit,
+    onAddSmallGoal: (content: String, color: String, isComplete: Boolean, position: Int) -> Unit,
     onUpdateSmallGoal: (goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit,
     onDeleteSmallGoal: (goalId: Long) -> Unit,
 ) {
     var editTarget by remember { mutableStateOf<Todo?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
+    var pendingPosition by remember { mutableStateOf(0) }
 
     val smallGoals = plan.todos.take(8)
     val doneCount = plan.todos.count { it.isComplete }
@@ -684,6 +711,7 @@ private fun MandalaDetailView(
                         when {
                             idx == 4 -> MandalaCenter(
                                 title = plan.content,
+                                label = "작은 목표",
                                 accentColor = accentColor,
                                 modifier = Modifier.weight(1f)
                             )
@@ -697,11 +725,14 @@ private fun MandalaDetailView(
                                 },
                                 modifier = Modifier.weight(1f)
                             )
-                            else -> MandalaEmptySmallGoalCell(
-                                onClick = { if (isMine) showAddSheet = true },
-                                isMine = isMine,
-                                modifier = Modifier.weight(1f)
-                            )
+                            else -> {
+                                val position = if (idx < 4) idx else idx - 1
+                                MandalaEmptySmallGoalCell(
+                                    onClick = { if (isMine) { pendingPosition = position; showAddSheet = true } },
+                                    isMine = isMine,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -760,7 +791,7 @@ private fun MandalaDetailView(
             existingGoal = null,
             onDismiss = { showAddSheet = false },
             onSave = { content, color, isComplete ->
-                onAddSmallGoal(content, color, isComplete)
+                onAddSmallGoal(content, color, isComplete, pendingPosition)
                 showAddSheet = false
             },
             onDelete = {}
@@ -806,7 +837,6 @@ private fun MandalaSmallGoalCell(goal: Todo, onClick: () -> Unit, modifier: Modi
 private fun MandalaEmptySmallGoalCell(onClick: () -> Unit, isMine: Boolean, modifier: Modifier = Modifier) {
     MandalaEmptyCell(
         onClick = if (isMine) onClick else null,
-        showLabel = true,
         modifier = modifier
     )
 }
@@ -814,13 +844,12 @@ private fun MandalaEmptySmallGoalCell(onClick: () -> Unit, isMine: Boolean, modi
 /**
  * 공용 빈 셀 — 대시 테두리 + 원형 + 버튼
  * onClick=null 이면 비클릭/비활성 스타일
- * showLabel=true 이면 하단에 "작은 목표" 레이블 표시
  */
 @Composable
 private fun MandalaEmptyCell(
     onClick: (() -> Unit)?,
-    showLabel: Boolean,
     modifier: Modifier = Modifier,
+    showPlus: Boolean = onClick != null,
 ) {
     val isActive = onClick != null
     val activeOnClick = onClick
@@ -848,11 +877,7 @@ private fun MandalaEmptyCell(
             },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            // 원형 + 버튼
+        if (showPlus) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -867,14 +892,6 @@ private fun MandalaEmptyCell(
                     fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
                     lineHeight = 26.sp
-                )
-            }
-            if (showLabel) {
-                Text(
-                    text = "작은 목표",
-                    color = contentColor,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold
                 )
             }
         }
@@ -911,6 +928,95 @@ private fun MiniMandalaIcon(accentColor: Color) {
     }
 }
 
+// ─── Plan BottomSheet ─────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlanBottomSheet(
+    onDismiss: () -> Unit,
+    onSave: (content: String, color: String) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var name by remember { mutableStateOf("") }
+    val canSave = name.isNotBlank()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = Color.White,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(28.dp)
+        ) {
+            Text(
+                text = "목표 추가",
+                color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(66.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("제목", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BasicTextField(
+                        value = name,
+                        onValueChange = { if (it.length <= 15) name = it },
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                        singleLine = true,
+                        textStyle = TextStyle(color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        decorationBox = { innerTextField ->
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                                if (name.isEmpty()) {
+                                    Text(
+                                        text = "목표를 입력해 주세요",
+                                        color = Color(0xFFB0AABC),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF4A4652)))
+                    Text(
+                        text = "${name.length} / 16",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.End,
+                        color = Color(0xFF4A4652),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (canSave) Purple else Color(0xFFD7DAE0))
+                    .clickable(enabled = canSave) { onSave(name.trim(), MANDALA_COLORS[0]) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("저장", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
 // ─── Small Goal BottomSheet ───────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -925,6 +1031,7 @@ private fun SmallGoalBottomSheet(
     var name by remember { mutableStateOf(existingGoal?.content ?: "") }
     val selectedColor = existingGoal?.color ?: MANDALA_COLORS[0]
     var isComplete by remember { mutableStateOf(existingGoal?.isComplete ?: false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val canSave = name.isNotBlank()
 
     ModalBottomSheet(
@@ -1047,13 +1154,31 @@ private fun SmallGoalBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onDelete() }
+                        .clickable { showDeleteConfirm = true }
                         .padding(vertical = 12.dp),
                     textAlign = TextAlign.Center
                 )
             }
             Spacer(Modifier.height(10.dp))
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("목표 삭제", fontWeight = FontWeight.ExtraBold) },
+            text = { Text("이 목표를 삭제할까요? 삭제 후 복구할 수 없습니다.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
+                    Text("삭제", color = Color(0xFFE04D5F), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("취소", color = Ink)
+                }
+            }
+        )
     }
 }
 
@@ -1076,16 +1201,23 @@ private fun CategoryChip(category: String, accentColor: Color) {
 }
 
 @Composable
-private fun LikeCount(likeCount: Int) {
+private fun LikeButton(isLiked: Boolean, likeCount: Int, onLikeClick: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50.dp))
-            .background(Color(0xFFFFEEF1))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(Color.White)
+            .border(1.dp, SoftLine, RoundedCornerShape(50.dp))
+            .clickable { onLikeClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text("♥", color = Color(0xFFFF5D65), fontSize = 13.sp)
-        Spacer(Modifier.width(5.dp))
+        Image(
+            painter = painterResource(if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            colorFilter = if (isLiked) null else ColorFilter.tint(Color(0xFF6E687D))
+        )
         Text(text = likeCount.toString(), color = Ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
@@ -1107,18 +1239,18 @@ private fun InfoPill(label: String, value: String, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun ProgressBar(progress: Float, accentColor: Color) {
+private fun ProgressBar(progress: Float) {
     Box(
         modifier = Modifier
             .fillMaxWidth().height(9.dp)
             .clip(RoundedCornerShape(50.dp))
-            .background(accentColor.copy(alpha = 0.14f))
+            .background(Purple.copy(alpha = 0.14f))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(progress.coerceIn(0f, 1f)).height(9.dp)
                 .clip(RoundedCornerShape(50.dp))
-                .background(accentColor)
+                .background(Purple)
         )
     }
 }
@@ -1158,8 +1290,9 @@ private fun String.toKoreanDateText(): String {
     return "${parts[0]}년 ${month}월 ${day}일"
 }
 
+@SuppressLint("UseKtx")
 fun String.toComposeColor(): Color = try {
-    Color(android.graphics.Color.parseColor(this))
+    Color(this.toColorInt())
 } catch (e: Exception) {
     Color(0xFF8D6BE8)
 }
