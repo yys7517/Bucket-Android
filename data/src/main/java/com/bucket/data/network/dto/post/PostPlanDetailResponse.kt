@@ -8,7 +8,6 @@ data class PostPlanDetailResponse(
     val sortOrder: Int,
     val content: String,
     val isComplete: Boolean,
-    // TODO. val isMine: Boolean
 )
 
 /*

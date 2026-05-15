@@ -1,6 +1,7 @@
 package com.bucket.presentation.ui.detail
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,22 +40,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.bucket.presentation.R
 import com.bucket.presentation.theme.BucketappTheme
 import com.bucket.presentation.theme.HomeBackground
 import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.theme.Muted
 import com.bucket.presentation.theme.SoftLine
-import com.bucket.presentation.ui.home.component.InitialBadge
+import com.bucket.presentation.ui.home.component.UserAvatar
 import com.bucket.presentation.ui.home.component.categoryAccent
-import com.bucket.presentation.ui.home.component.initial
 import com.example.domain.model.post.BucketPostDetail
 import com.example.domain.model.post.PostPlan
 
@@ -81,6 +85,12 @@ fun BucketDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val bucket = uiState.bucketDetail
+    var isLiked by rememberSaveable(bucket?.id, bucket?.isLiked) {
+        mutableStateOf(bucket?.isLiked ?: false)
+    }
+    var isEditing by rememberSaveable(bucket?.id, bucket?.isMine) {
+        mutableStateOf(false)
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -102,8 +112,12 @@ fun BucketDetailScreen(
         ) {
             item {
                 DetailTopBar(
-                    isLiked = false,
-                    onBackClick = onBackClick
+                    isLiked = isLiked,
+                    isMine = bucket?.isMine == true,
+                    isEditing = isEditing,
+                    onBackClick = onBackClick,
+                    onLikeClick = { isLiked = isLiked.not() },
+                    onEditClick = { isEditing = isEditing.not() }
                 )
             }
             when {
@@ -139,13 +153,16 @@ fun BucketDetailScreen(
                             bucket = bucket,
                             accentColor = accentColor,
                             completedCount = completedCount,
-                            progress = progress
+                            progress = progress,
+                            likeCount = bucket.adjustedLikeCount(isLiked),
+                            isEditing = isEditing && bucket.isMine
                         )
                     }
                     item {
                         PlanSection(
                             plans = bucket.plans,
-                            accentColor = accentColor
+                            accentColor = accentColor,
+                            isEditing = isEditing && bucket.isMine
                         )
                     }
                 }
@@ -157,7 +174,11 @@ fun BucketDetailScreen(
 @Composable
 private fun DetailTopBar(
     isLiked: Boolean,
-    onBackClick: () -> Unit
+    isMine: Boolean,
+    isEditing: Boolean,
+    onBackClick: () -> Unit,
+    onLikeClick: () -> Unit,
+    onEditClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -168,15 +189,37 @@ private fun DetailTopBar(
             onClick = onBackClick,
             content = { BackIcon(Modifier.size(22.dp)) }
         )
-        CircleIconButton(
-            onClick = {},
-            content = {
-                HeartIcon(
-                    modifier = Modifier.size(22.dp),
-                    color = if (isLiked) Color(0xFFFF5D65) else Color(0xFF6E687D)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (isMine) {
+                CircleIconButton(
+                    onClick = onEditClick,
+                    content = {
+                        if (isEditing) {
+                            CheckIcon(
+                                modifier = Modifier.size(22.dp),
+                                color = Color(0xFF2F9B68)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(R.drawable.ic_edit),
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                                colorFilter = ColorFilter.tint(Color(0xFF6E687D))
+                            )
+                        }
+                    }
                 )
             }
-        )
+            CircleIconButton(
+                onClick = onLikeClick,
+                content = {
+                    HeartIcon(
+                        modifier = Modifier.size(22.dp),
+                        color = if (isLiked) Color(0xFFFF5D65) else Color(0xFF6E687D)
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -203,8 +246,13 @@ private fun BucketHeaderCard(
     bucket: BucketPostDetail,
     accentColor: Color,
     completedCount: Int,
-    progress: Float
+    progress: Float,
+    likeCount: Int,
+    isEditing: Boolean
 ) {
+    var title by rememberSaveable(bucket.id, "title") { mutableStateOf(bucket.title) }
+    var memo by rememberSaveable(bucket.id, "memo") { mutableStateOf(bucket.memo) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,24 +270,54 @@ private fun BucketHeaderCard(
                 category = bucket.category,
                 accentColor = accentColor
             )
-            LikeCount(likeCount = bucket.likeCount)
+            LikeCount(likeCount = likeCount)
         }
         Spacer(Modifier.height(18.dp))
-        Text(
-            text = bucket.title,
-            color = Ink,
-            fontSize = 28.sp,
-            lineHeight = 34.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        if (isEditing) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = false,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Ink,
+                    fontSize = 24.sp,
+                    lineHeight = 30.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            )
+        } else {
+            Text(
+                text = title,
+                color = Ink,
+                fontSize = 28.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
         Spacer(Modifier.height(14.dp))
-        Text(
-            text = bucket.memo,
-            color = Color(0xFF635E72),
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        if (isEditing) {
+            OutlinedTextField(
+                value = memo,
+                onValueChange = { memo = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color(0xFF635E72),
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        } else {
+            Text(
+                text = memo,
+                color = Color(0xFF635E72),
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
         Spacer(Modifier.height(20.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -263,8 +341,9 @@ private fun BucketHeaderCard(
         )
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            InitialBadge(
-                text = bucket.username.initial(),
+            UserAvatar(
+                profileImageUrl = bucket.profileImage,
+                username = bucket.username,
                 color = accentColor.copy(alpha = 0.18f),
                 textColor = accentColor,
                 size = 30
@@ -385,7 +464,8 @@ private fun ProgressBar(
 @Composable
 private fun PlanSection(
     plans: List<PostPlan>,
-    accentColor: Color
+    accentColor: Color,
+    isEditing: Boolean
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -397,7 +477,8 @@ private fun PlanSection(
         plans.sortedBy { it.sortOrder }.forEach { plan ->
             PlanChecklistItem(
                 plan = plan,
-                accentColor = accentColor
+                accentColor = accentColor,
+                isEditing = isEditing
             )
         }
     }
@@ -430,38 +511,59 @@ private fun SectionTitle(
 @Composable
 private fun PlanChecklistItem(
     plan: PostPlan,
-    accentColor: Color
+    accentColor: Color,
+    isEditing: Boolean
 ) {
     var checked by rememberSaveable(plan.id) { mutableStateOf(plan.isComplete) }
+    var content by rememberSaveable(plan.id, "content") { mutableStateOf(plan.content) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .clickable { checked = checked.not() }
+            .clickable(enabled = isEditing) { checked = checked.not() }
             .background(Color.White)
             .border(1.dp, SoftLine, RoundedCornerShape(18.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = { checked = it },
+            onCheckedChange = if (isEditing) {
+                { checked = it }
+            } else {
+                null
+            },
+            enabled = isEditing,
             colors = CheckboxDefaults.colors(
                 checkedColor = accentColor,
                 uncheckedColor = Color(0xFFB7B0C5),
                 checkmarkColor = Color.White
             )
         )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = plan.content,
-            color = if (checked) Color(0xFF8C8697) else Ink,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 22.sp,
-            modifier = Modifier.weight(1f)
-        )
+        Spacer(Modifier.width(8.dp))
+        if (isEditing) {
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                modifier = Modifier.weight(1f),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = if (checked) Color(0xFF8C8697) else Ink,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 22.sp
+                )
+            )
+        } else {
+            Text(
+                text = content,
+                color = if (checked) Color(0xFF8C8697) else Ink,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 22.sp,
+                modifier = Modifier.weight(1f)
+            )
+        }
         Text(
             text = "%02d".format(plan.sortOrder),
             color = accentColor.copy(alpha = 0.7f),
@@ -487,6 +589,29 @@ private fun BackIcon(modifier: Modifier = Modifier) {
             start = Offset(size.width * 0.34f, size.height * 0.5f),
             end = Offset(size.width * 0.62f, size.height * 0.8f),
             strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+private fun CheckIcon(
+    modifier: Modifier = Modifier,
+    color: Color
+) {
+    Canvas(modifier) {
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.20f, size.height * 0.52f),
+            end = Offset(size.width * 0.42f, size.height * 0.73f),
+            strokeWidth = 2.6.dp.toPx(),
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.42f, size.height * 0.73f),
+            end = Offset(size.width * 0.82f, size.height * 0.28f),
+            strokeWidth = 2.6.dp.toPx(),
             cap = StrokeCap.Round
         )
     }
@@ -534,6 +659,13 @@ private fun HeartIcon(
     }
 }
 
+private fun BucketPostDetail.adjustedLikeCount(isLiked: Boolean): Int =
+    when {
+        isLiked && !this.isLiked -> likeCount + 1
+        !isLiked && this.isLiked -> (likeCount - 1).coerceAtLeast(0)
+        else -> likeCount
+    }
+
 private fun String.toKoreanDateText(): String {
     val parts = split("-")
     if (parts.size != 3) return this
@@ -572,7 +704,9 @@ private fun BucketDetailScreenPreview() {
                             content = "런닝크루 가입",
                             isComplete = true
                         )
-                    )
+                    ),
+                    isLiked = true,
+                    isMine = true
                 )
             ),
             onBackClick = {}

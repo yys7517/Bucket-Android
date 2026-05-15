@@ -11,7 +11,7 @@ data class BucketPostDetail(
     val userId: Long,
     val username: String,
     val profileImage: String,
-    val plans: List<PostPlan>
-//    val isLiked: Boolean,
-    // val isMine: Boolean,
+    val plans: List<PostPlan>,
+    val isLiked: Boolean,
+    val isMine: Boolean,
 )

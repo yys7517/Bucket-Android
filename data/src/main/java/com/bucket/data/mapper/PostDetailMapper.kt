@@ -16,7 +16,9 @@ fun PostDetailResponse.asDomain(): BucketPostDetail = BucketPostDetail(
     userId = this.userInfo.id,
     username = this.userInfo.username,
     profileImage = this.userInfo.profileImgUrl,
-    plans = this.plans.map { it.asPostPlan() }
+    plans = this.plans.map { it.asPostPlan() },
+    isLiked = isLiked,
+    isMine = isMine
 )
 
 fun PostPlanDetailResponse.asPostPlan(): PostPlan = PostPlan(
