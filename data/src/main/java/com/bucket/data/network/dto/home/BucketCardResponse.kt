@@ -8,10 +8,10 @@ data class BucketCardResponse(
     val id: Long,
     val category: String,
     val categoryColor: String = "",
-    val title: String,
+    val goal: String = "",
     val likeCount: Int,
     val isLiked: Boolean = false,
     val startDate: String,
     val userInfo: UserInfoResponse,
-    val planSummary: PlanSummaryResponse
+    val smallGoalSummary: GoalSummaryResponse
 )
