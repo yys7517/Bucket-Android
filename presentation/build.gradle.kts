@@ -64,4 +64,8 @@ dependencies {
 
     // kakao
     implementation(libs.kakao.login)
+
+    // image loading
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 }
