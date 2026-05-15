@@ -77,8 +77,9 @@ fun RecentBucketCard(
             )
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                InitialBadge(
-                    text = bucket.userName.initial(),
+                UserAvatar(
+                    profileImageUrl = bucket.profileImageUrl,
+                    username = bucket.userName,
                     color = accentColor.copy(alpha = 0.18f),
                     textColor = accentColor,
                     size = 24

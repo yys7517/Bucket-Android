@@ -90,8 +90,9 @@ fun PopularBucketCard(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
-                InitialBadge(
-                    text = bucket.userName.initial(),
+                UserAvatar(
+                    profileImageUrl = bucket.profileImageUrl,
+                    username = bucket.userName,
                     color = accentColor.copy(alpha = 0.18f),
                     textColor = accentColor
                 )

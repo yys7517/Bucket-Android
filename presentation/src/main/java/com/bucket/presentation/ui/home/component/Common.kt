@@ -1,6 +1,7 @@
 package com.bucket.presentation.ui.home.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -10,10 +11,44 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.bucket.presentation.theme.SoftLine
 import com.bucket.presentation.theme.Purple
+
+@Composable
+fun UserAvatar(
+    profileImageUrl: String,
+    username: String,
+    color: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier,
+    size: Int = 28
+) {
+    if (profileImageUrl.isBlank()) {
+        InitialBadge(
+            text = username.initial(),
+            color = color,
+            textColor = textColor,
+            modifier = modifier,
+            size = size
+        )
+    } else {
+        AsyncImage(
+            model = profileImageUrl,
+            contentDescription = "$username 프로필 이미지",
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(size.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(1.dp, SoftLine, CircleShape)
+        )
+    }
+}
 
 @Composable
 fun InitialBadge(
