@@ -3,6 +3,7 @@ package com.bucket.data.network.di
 import com.bucket.data.BuildConfig
 import com.bucket.data.datasource.auth.AuthLocalDataSource
 import com.bucket.data.network.dto.auth.RefreshTokenResponse
+import com.bucket.data.network.dto.common.BaseResponse
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -92,12 +93,12 @@ internal object NetworkModule {
                             val refreshResponse = client.post("auth/refresh") {
                                 markAsRefreshTokenRequest()
                                 bearerAuth(refreshToken)
-                            }.body<RefreshTokenResponse>()
+                            }.body<BaseResponse<RefreshTokenResponse>>()
 
-                            authLocalDataSource.saveAccessToken(refreshResponse.accessToken)
+                            authLocalDataSource.saveAccessToken(refreshResponse.data.accessToken)
 
                             BearerTokens(
-                                accessToken = refreshResponse.accessToken,
+                                accessToken = refreshResponse.data.accessToken,
                                 refreshToken = refreshToken
                             )
                         }.getOrElse { throwable ->
