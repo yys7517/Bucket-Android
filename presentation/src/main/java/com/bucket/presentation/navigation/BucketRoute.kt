@@ -1,5 +1,7 @@
 package com.bucket.presentation.navigation
 
+import com.example.domain.model.user.Author
+
 sealed class BucketRoute(
     val route: String,
     val label: String
@@ -8,10 +10,17 @@ sealed class BucketRoute(
     data object Login : BucketRoute("login", "로그인")
     data object Category : BucketRoute("category", "카테고리")
     data object Home : BucketRoute("home", "홈")
-    data object BucketDetail : BucketRoute("bucket/{bucketId}", "버킷 상세") {
+    data object BucketDetail : BucketRoute("bucket/{bucketId}?userId={userId}&username={username}&profileImage={profileImage}", "버킷 상세") {
         const val ARG_BUCKET_ID = "bucketId"
+        const val ARG_USER_ID = "userId"
+        const val ARG_USERNAME = "username"
+        const val ARG_PROFILE_IMAGE = "profileImage"
 
-        fun createRoute(bucketId: Long): String = "bucket/$bucketId"
+        fun createRoute(bucketId: Long, author: Author): String {
+            val encodedUsername = android.net.Uri.encode(author.username)
+            val encodedProfileImage = android.net.Uri.encode(author.profileImgUrl)
+            return "bucket/$bucketId?userId=${author.userId}&username=$encodedUsername&profileImage=$encodedProfileImage"
+        }
     }
     data object Profile : BucketRoute("profile", "마이")
 }

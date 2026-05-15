@@ -91,14 +91,14 @@ fun PopularBucketCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
                 UserAvatar(
-                    profileImageUrl = bucket.profileImageUrl,
-                    username = bucket.userName,
+                    profileImageUrl = bucket.author.profileImgUrl,
+                    username = bucket.author.username,
                     color = accentColor.copy(alpha = 0.18f),
                     textColor = accentColor
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = bucket.userName,
+                    text = bucket.author.username,
                     color = Color(0xFF6F687E),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold

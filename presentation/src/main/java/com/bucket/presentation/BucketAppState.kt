@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.bucket.presentation.navigation.BucketRoute
+import com.example.domain.model.user.Author
 import kotlinx.coroutines.CoroutineScope
 
 @Stable
@@ -24,8 +25,8 @@ data class BucketAppState(
         }
     }
 
-    fun navigateToBucketDetail(bucketId: Long) {
-        navController.navigate(BucketRoute.BucketDetail.createRoute(bucketId))
+    fun navigateToBucketDetail(bucketId: Long, author: Author) {
+        navController.navigate(BucketRoute.BucketDetail.createRoute(bucketId, author))
     }
 
     fun navigateToHomeAfterLogin() {

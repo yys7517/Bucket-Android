@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.bucket.presentation.BucketAppState
+import com.example.domain.model.user.Author
 import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.detail.BucketDetailRoute
@@ -62,18 +63,25 @@ fun BucketNavHost(
             CategoryRoute()
         }
         composable(BucketRoute.Home.route) {
-            HomeRoute(onBucketClick = appState::navigateToBucketDetail)
+            HomeRoute(onBucketClick = { id, author -> appState.navigateToBucketDetail(id, author) })
         }
         composable(
             route = BucketRoute.BucketDetail.route,
             arguments = listOf(
-                navArgument(BucketRoute.BucketDetail.ARG_BUCKET_ID) {
-                    type = NavType.LongType
-                }
+                navArgument(BucketRoute.BucketDetail.ARG_BUCKET_ID) { type = NavType.LongType },
+                navArgument(BucketRoute.BucketDetail.ARG_USER_ID) { type = NavType.LongType; defaultValue = 0L },
+                navArgument(BucketRoute.BucketDetail.ARG_USERNAME) { type = NavType.StringType; defaultValue = "" },
+                navArgument(BucketRoute.BucketDetail.ARG_PROFILE_IMAGE) { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
+            val args = backStackEntry.arguments
             BucketDetailRoute(
-                bucketId = backStackEntry.arguments?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L,
+                bucketId = args?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L,
+                author = Author(
+                    userId = args?.getLong(BucketRoute.BucketDetail.ARG_USER_ID) ?: 0L,
+                    username = args?.getString(BucketRoute.BucketDetail.ARG_USERNAME).orEmpty(),
+                    profileImgUrl = args?.getString(BucketRoute.BucketDetail.ARG_PROFILE_IMAGE).orEmpty()
+                ),
                 onBackClick = appState::navigateBack
             )
         }

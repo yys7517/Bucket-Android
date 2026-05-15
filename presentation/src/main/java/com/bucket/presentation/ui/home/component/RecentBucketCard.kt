@@ -78,15 +78,15 @@ fun RecentBucketCard(
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 UserAvatar(
-                    profileImageUrl = bucket.profileImageUrl,
-                    username = bucket.userName,
+                    profileImageUrl = bucket.author.profileImgUrl,
+                    username = bucket.author.username,
                     color = accentColor.copy(alpha = 0.18f),
                     textColor = accentColor,
                     size = 24
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "${bucket.userName} · ${bucket.startDate}",
+                    text = "${bucket.author.username} · ${bucket.startDate}",
                     color = Color(0xFF8C8697),
                     fontSize = 14.sp,
                     maxLines = 1,

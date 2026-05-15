@@ -35,10 +35,11 @@ import com.bucket.presentation.ui.home.component.SearchBar
 import com.bucket.presentation.ui.home.component.SectionHeader
 import com.example.domain.model.home.PopularBucket
 import com.example.domain.model.home.RecentBucket
+import com.example.domain.model.user.Author
 
 @Composable
 fun HomeRoute(
-    onBucketClick: (Long) -> Unit,
+    onBucketClick: (Long, Author) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -51,7 +52,7 @@ fun HomeRoute(
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
-    onBucketClick: (Long) -> Unit = {},
+    onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -99,7 +100,7 @@ fun HomeScreen(
                     uiState.recentBuckets.forEach { bucket ->
                         RecentBucketCard(
                             bucket = bucket,
-                            onClick = { onBucketClick(bucket.id) }
+                            onClick = { onBucketClick(bucket.id, bucket.author) }
                         )
                     }
                     if (uiState.isLoading) {
@@ -127,7 +128,7 @@ fun HomeScreen(
 @Composable
 private fun PopularBucketRow(
     popularBuckets: List<PopularBucket>,
-    onBucketClick: (Long) -> Unit
+    onBucketClick: (Long, Author) -> Unit
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -136,7 +137,7 @@ private fun PopularBucketRow(
         items(popularBuckets) { bucket ->
             PopularBucketCard(
                 bucket = bucket,
-                onClick = { onBucketClick(bucket.id) }
+                onClick = { onBucketClick(bucket.id, bucket.author) }
             )
         }
     }
@@ -154,8 +155,7 @@ private fun HomeScreenPreview() {
                         category = "여행",
                         categoryColor = "",
                         title = "한라산 백록담 등반하기",
-                        userName = "test-user",
-                        profileImageUrl = "https://example.com/test-user.png",
+                        author = Author(userId = 1L, username = "test-user", profileImgUrl = "https://example.com/test-user.png"),
                         likeCount = 1,
                         isLiked = false,
                         progress = 66
@@ -167,8 +167,7 @@ private fun HomeScreenPreview() {
                         category = "건강",
                         categoryColor = "",
                         title = "매주 3회 러닝 루틴 만들기",
-                        userName = "test-user",
-                        profileImageUrl = "https://example.com/test-user.png",
+                        author = Author(userId = 2L, username = "test-user", profileImgUrl = "https://example.com/test-user.png"),
                         startDate = "2026-05-13"
                     )
                 )
