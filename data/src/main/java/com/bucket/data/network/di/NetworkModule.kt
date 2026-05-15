@@ -34,6 +34,7 @@ import javax.inject.Singleton
 internal object NetworkModule {
     private val networkJson = Json {
         ignoreUnknownKeys = true    // 서버 응답에 DTO에 없는 필드가 있어도 에러 안 냄
+        coerceInputValues = true
         prettyPrint = true
     }
 

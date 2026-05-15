@@ -1,5 +1,7 @@
 package com.example.domain.model.post
 
+import com.example.domain.model.user.Author
+
 data class BucketPostDetail(
     val id: Long,
     val title: String,
@@ -8,10 +10,8 @@ data class BucketPostDetail(
     val categoryColor: String,
     val likeCount: Int,
     val startDate: String,
-    val userId: Long,
-    val username: String,
-    val profileImage: String,
-    val plans: List<PostPlan>,
+    val author: Author,
+    val smallGoals: List<SmallGoal>,
     val isLiked: Boolean,
     val isMine: Boolean,
 )
