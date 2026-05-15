@@ -108,7 +108,7 @@ internal object NetworkModule {
 
                     sendWithoutRequest { request ->
                         val path = request.url.encodedPath
-                        !path.contains("auth")
+                        !path.contains("auth/kakao") && !path.contains("auth/logout")
                     }
                 }
             }
