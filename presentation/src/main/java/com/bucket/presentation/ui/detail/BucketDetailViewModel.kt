@@ -7,6 +7,7 @@ import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.post.Todo
 import com.example.domain.model.user.Author
 import com.example.domain.usecase.post.GetPostDetailUseCase
+import com.example.domain.usecase.post.ToggleLikeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,8 @@ data class BucketDetailUiState(
     val isLoading: Boolean = false,
     val bucketDetail: BucketPostDetail? = null,
     val errorMessage: String? = null,
+    val isLiked: Boolean = false,
+    val likeCount: Int = 0,
     val drillDownPlan: SmallGoal? = null,
     /** 만다라트 그리드에서 현재 선택된 계획 셀 (isMine=true 전용) */
     val selectedMandalaCell: SmallGoal? = null,
@@ -26,7 +29,8 @@ data class BucketDetailUiState(
 
 @HiltViewModel
 class BucketDetailViewModel @Inject constructor(
-    private val getPostDetailUseCase: GetPostDetailUseCase
+    private val getPostDetailUseCase: GetPostDetailUseCase,
+    private val toggleLikeUseCase: ToggleLikeUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BucketDetailUiState())
     val uiState: StateFlow<BucketDetailUiState> = _uiState.asStateFlow()
@@ -40,7 +44,14 @@ class BucketDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             getPostDetailUseCase(bucketId, author)
                 .onSuccess { bucket ->
-                    _uiState.update { it.copy(isLoading = false, bucketDetail = bucket) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            bucketDetail = bucket,
+                            isLiked = bucket.isLiked,
+                            likeCount = bucket.likeCount,
+                        )
+                    }
                 }
                 .onFailure { throwable ->
                     _uiState.update {
@@ -124,6 +135,18 @@ class BucketDetailViewModel @Inject constructor(
             current.add(targetIndex.coerceIn(0, current.size), newPlan)
             val reordered = current.mapIndexed { i, plan -> plan.copy(sortOrder = i + 1) }
             state.copy(bucketDetail = bucket.copy(smallGoals = reordered))
+        }
+    }
+
+    fun toggleLike(postId: Long) {
+        val current = _uiState.value
+        val optimisticIsLiked = !current.isLiked
+        val optimisticCount = if (optimisticIsLiked) current.likeCount + 1 else (current.likeCount - 1).coerceAtLeast(0)
+        _uiState.update { it.copy(isLiked = optimisticIsLiked, likeCount = optimisticCount) }
+        viewModelScope.launch {
+            toggleLikeUseCase(postId)
+                .onSuccess { result -> _uiState.update { it.copy(isLiked = result.isLiked, likeCount = result.likeCount) } }
+                .onFailure { _uiState.update { it.copy(isLiked = current.isLiked, likeCount = current.likeCount) } }
         }
     }
 

@@ -117,6 +117,7 @@ fun BucketDetailRoute(
     BucketDetailScreen(
         uiState = uiState,
         onBackClick = onBackClick,
+        onLikeClick = { viewModel.toggleLike(bucketId) },
         onSelectMandalaCell = viewModel::selectMandalaCell,
         onDrillDown = viewModel::drillDown,
         onExitDrillDown = viewModel::exitDrillDown,
@@ -133,6 +134,7 @@ fun BucketDetailRoute(
 fun BucketDetailScreen(
     uiState: BucketDetailUiState,
     onBackClick: () -> Unit,
+    onLikeClick: () -> Unit = {},
     onSelectMandalaCell: (SmallGoal) -> Unit = {},
     onDrillDown: (SmallGoal) -> Unit = {},
     onExitDrillDown: () -> Unit = {},
@@ -144,9 +146,6 @@ fun BucketDetailScreen(
 ) {
     val bucket = uiState.bucketDetail
 
-    var isLiked by rememberSaveable(bucket?.id, bucket?.isLiked) {
-        mutableStateOf(bucket?.isLiked ?: false)
-    }
     var isEditing by rememberSaveable(bucket?.id, bucket?.isMine) {
         mutableStateOf(false)
     }
@@ -201,11 +200,11 @@ fun BucketDetailScreen(
                             accentColor = accentColor,
                             completedCount = completedCount,
                             progress = progress,
-                            likeCount = bucket.adjustedLikeCount(isLiked),
+                            likeCount = uiState.likeCount,
                             isMine = bucket.isMine,
-                            isLiked = isLiked,
+                            isLiked = uiState.isLiked,
                             isEditing = isEditing && bucket.isMine,
-                            onLikeClick = { isLiked = isLiked.not() },
+                            onLikeClick = onLikeClick,
                             onEditClick = { isEditing = isEditing.not() },
                         )
                     }
@@ -1275,12 +1274,6 @@ private fun CheckIcon(modifier: Modifier = Modifier, color: Color) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-private fun BucketPostDetail.adjustedLikeCount(isLiked: Boolean): Int = when {
-    isLiked && !this.isLiked -> likeCount + 1
-    !isLiked && this.isLiked -> (likeCount - 1).coerceAtLeast(0)
-    else -> likeCount
-}
 
 private fun String.toKoreanDateText(): String {
     val parts = split("-")
