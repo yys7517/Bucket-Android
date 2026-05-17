@@ -3,13 +3,16 @@ package com.bucket.data.repository
 import com.bucket.data.datasource.post.PostDataSource
 import com.bucket.data.mapper.asDomain
 import com.bucket.data.mapper.asSmallGoal
+import com.bucket.data.mapper.asTodo
 import com.bucket.data.network.dto.post.PostUpdateRequest
 import com.bucket.data.network.dto.post.SmallGoalCreateRequest
 import com.bucket.data.network.dto.post.SmallGoalUpdateRequest
+import com.bucket.data.network.dto.post.TodoRequest
 import com.example.domain.model.post.LikeResult
 import com.example.domain.model.post.PostDetail
 import com.example.domain.model.post.PostUpdateResult
 import com.example.domain.model.post.SmallGoal
+import com.example.domain.model.post.Todo
 import com.example.domain.model.user.Author
 import com.example.domain.repository.post.PostRepository
 import javax.inject.Inject
@@ -89,6 +92,57 @@ class PostRepositoryImpl @Inject constructor(
         smallGoalId: Long,
     ): Result<Unit> = runCatching {
         postDataSource.deleteSmallGoal(postId, smallGoalId)
+        Unit
+    }
+
+    override suspend fun createTodo(
+        postId: Long,
+        smallGoalId: Long,
+        content: String,
+        color: String,
+        isComplete: Boolean,
+        sortOrder: Int,
+    ): Result<Todo> = runCatching {
+        postDataSource.createTodo(
+            postId = postId,
+            smallGoalId = smallGoalId,
+            request = TodoRequest(
+                content = content,
+                color = color,
+                isCompleted = isComplete,
+                sortOrder = sortOrder,
+            )
+        ).data.asTodo()
+    }
+
+    override suspend fun updateTodo(
+        postId: Long,
+        smallGoalId: Long,
+        todoId: Long,
+        content: String,
+        color: String,
+        isComplete: Boolean,
+        sortOrder: Int,
+    ): Result<Todo> = runCatching {
+        postDataSource.updateTodo(
+            postId = postId,
+            smallGoalId = smallGoalId,
+            todoId = todoId,
+            request = TodoRequest(
+                content = content,
+                color = color,
+                isCompleted = isComplete,
+                sortOrder = sortOrder,
+            )
+        ).data.asTodo()
+    }
+
+    override suspend fun deleteTodo(
+        postId: Long,
+        smallGoalId: Long,
+        todoId: Long,
+    ): Result<Unit> = runCatching {
+        postDataSource.deleteTodo(postId, smallGoalId, todoId)
         Unit
     }
 }

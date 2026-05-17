@@ -8,6 +8,8 @@ import com.bucket.data.network.dto.post.PostUpdateResponse
 import com.bucket.data.network.dto.post.SmallGoalCreateRequest
 import com.bucket.data.network.dto.post.SmallGoalResponse
 import com.bucket.data.network.dto.post.SmallGoalUpdateRequest
+import com.bucket.data.network.dto.post.TodoRequest
+import com.bucket.data.network.dto.post.TodoResponse
 
 interface PostDataSource {
     suspend fun getPostDetail(postId: Long): BaseResponse<PostDetailResponse>
@@ -32,5 +34,24 @@ interface PostDataSource {
     suspend fun deleteSmallGoal(
         postId: Long,
         smallGoalId: Long,
+    ): BaseResponse<String?>
+
+    suspend fun createTodo(
+        postId: Long,
+        smallGoalId: Long,
+        request: TodoRequest,
+    ): BaseResponse<TodoResponse>
+
+    suspend fun updateTodo(
+        postId: Long,
+        smallGoalId: Long,
+        todoId: Long,
+        request: TodoRequest,
+    ): BaseResponse<TodoResponse>
+
+    suspend fun deleteTodo(
+        postId: Long,
+        smallGoalId: Long,
+        todoId: Long,
     ): BaseResponse<String?>
 }
