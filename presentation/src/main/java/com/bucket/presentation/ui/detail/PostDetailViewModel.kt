@@ -7,12 +7,15 @@ import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.post.Todo
 import com.example.domain.model.user.Author
 import com.example.domain.usecase.post.CreateSmallGoalUseCase
+import com.example.domain.usecase.post.CreateTodoUseCase
 import com.example.domain.usecase.post.DeletePostUseCase
 import com.example.domain.usecase.post.DeleteSmallGoalUseCase
+import com.example.domain.usecase.post.DeleteTodoUseCase
 import com.example.domain.usecase.post.GetPostDetailUseCase
 import com.example.domain.usecase.post.ToggleLikeUseCase
 import com.example.domain.usecase.post.UpdatePostUseCase
 import com.example.domain.usecase.post.UpdateSmallGoalUseCase
+import com.example.domain.usecase.post.UpdateTodoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -52,6 +55,9 @@ class PostDetailViewModel @Inject constructor(
     private val createSmallGoalUseCase: CreateSmallGoalUseCase,
     private val updateSmallGoalUseCase: UpdateSmallGoalUseCase,
     private val deleteSmallGoalUseCase: DeleteSmallGoalUseCase,
+    private val createTodoUseCase: CreateTodoUseCase,
+    private val updateTodoUseCase: UpdateTodoUseCase,
+    private val deleteTodoUseCase: DeleteTodoUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PostDetailUiState())
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
@@ -126,37 +132,119 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun addSmallGoal(planId: Long, content: String, color: String, isComplete: Boolean, position: Int) {
-        _uiState.update { state ->
-            val post = state.postDetail ?: return@update state
-            val newTodo = Todo(id = System.currentTimeMillis(), content = content, color = color, isComplete = isComplete, position = position)
-            val updatedSmallGoals = post.smallGoals.map { plan ->
+        val state = _uiState.value
+        val post = state.postDetail ?: return
+        val tempId = -System.currentTimeMillis()
+        val newTodo = Todo(id = tempId, content = content, color = color, isComplete = isComplete, position = position)
+
+        _uiState.update { s ->
+            val p = s.postDetail ?: return@update s
+            val updatedSmallGoals = p.smallGoals.map { plan ->
                 if (plan.id == planId) plan.copy(todos = plan.todos + newTodo) else plan
             }
-            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+            val updatedSelected = s.selectedMandalaCell?.let { cell ->
                 if (cell.id == planId) cell.copy(todos = cell.todos + newTodo) else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+            s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+        }
+
+        viewModelScope.launch {
+            createTodoUseCase(
+                postId = post.id,
+                smallGoalId = planId,
+                content = content,
+                color = color,
+                isComplete = isComplete,
+                sortOrder = position,
+            )
+                .onSuccess { serverTodo ->
+                    _uiState.update { s ->
+                        val p = s.postDetail ?: return@update s
+                        val updatedSmallGoals = p.smallGoals.map { plan ->
+                            if (plan.id == planId) plan.copy(todos = plan.todos.map { if (it.id == tempId) serverTodo else it }) else plan
+                        }
+                        val updatedSelected = s.selectedMandalaCell?.let { cell ->
+                            if (cell.id == planId) cell.copy(todos = cell.todos.map { if (it.id == tempId) serverTodo else it }) else cell
+                        }
+                        s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update { s ->
+                        val p = s.postDetail ?: return@update s
+                        val updatedSmallGoals = p.smallGoals.map { plan ->
+                            if (plan.id == planId) plan.copy(todos = plan.todos.filter { it.id != tempId }) else plan
+                        }
+                        val updatedSelected = s.selectedMandalaCell?.let { cell ->
+                            if (cell.id == planId) cell.copy(todos = cell.todos.filter { it.id != tempId }) else cell
+                        }
+                        s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+                    }
+                    _events.trySend(PostDetailEvent.Error(throwable.message ?: "할 일 추가에 실패했습니다."))
+                }
         }
     }
 
     fun updateSmallGoal(planId: Long, goalId: Long, content: String, color: String, isComplete: Boolean) {
-        _uiState.update { state ->
-            val post = state.postDetail ?: return@update state
-            val updatedSmallGoals = post.smallGoals.map { plan ->
+        val state = _uiState.value
+        val post = state.postDetail ?: return
+        val previous = post.smallGoals.firstOrNull { it.id == planId }
+            ?.todos?.firstOrNull { it.id == goalId } ?: return
+
+        _uiState.update { s ->
+            val p = s.postDetail ?: return@update s
+            val updatedSmallGoals = p.smallGoals.map { plan ->
                 if (plan.id == planId) {
                     plan.copy(todos = plan.todos.map { g ->
                         if (g.id == goalId) g.copy(content = content, color = color, isComplete = isComplete) else g
                     })
                 } else plan
             }
-            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+            val updatedSelected = s.selectedMandalaCell?.let { cell ->
                 if (cell.id == planId) {
                     cell.copy(todos = cell.todos.map { g ->
                         if (g.id == goalId) g.copy(content = content, color = color, isComplete = isComplete) else g
                     })
                 } else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+            s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+        }
+
+        viewModelScope.launch {
+            updateTodoUseCase(
+                postId = post.id,
+                smallGoalId = planId,
+                todoId = goalId,
+                content = content,
+                color = color,
+                isComplete = isComplete,
+                sortOrder = previous.position,
+            )
+                .onSuccess { serverTodo ->
+                    _uiState.update { s ->
+                        val p = s.postDetail ?: return@update s
+                        val updatedSmallGoals = p.smallGoals.map { plan ->
+                            if (plan.id == planId) plan.copy(todos = plan.todos.map { if (it.id == goalId) serverTodo else it }) else plan
+                        }
+                        val updatedSelected = s.selectedMandalaCell?.let { cell ->
+                            if (cell.id == planId) cell.copy(todos = cell.todos.map { if (it.id == goalId) serverTodo else it }) else cell
+                        }
+                        s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update { s ->
+                        val p = s.postDetail ?: return@update s
+                        val updatedSmallGoals = p.smallGoals.map { plan ->
+                            if (plan.id == planId) plan.copy(todos = plan.todos.map { if (it.id == goalId) previous else it }) else plan
+                        }
+                        val updatedSelected = s.selectedMandalaCell?.let { cell ->
+                            if (cell.id == planId) cell.copy(todos = cell.todos.map { if (it.id == goalId) previous else it }) else cell
+                        }
+                        s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+                    }
+                    _events.trySend(PostDetailEvent.Error(throwable.message ?: "할 일 수정에 실패했습니다."))
+                }
         }
     }
 
@@ -409,15 +497,37 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun deleteSmallGoal(planId: Long, goalId: Long) {
-        _uiState.update { state ->
-            val post = state.postDetail ?: return@update state
-            val updatedSmallGoals = post.smallGoals.map { plan ->
+        val state = _uiState.value
+        val post = state.postDetail ?: return
+        val previous = post.smallGoals.firstOrNull { it.id == planId }
+            ?.todos?.firstOrNull { it.id == goalId } ?: return
+
+        _uiState.update { s ->
+            val p = s.postDetail ?: return@update s
+            val updatedSmallGoals = p.smallGoals.map { plan ->
                 if (plan.id == planId) plan.copy(todos = plan.todos.filter { it.id != goalId }) else plan
             }
-            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+            val updatedSelected = s.selectedMandalaCell?.let { cell ->
                 if (cell.id == planId) cell.copy(todos = cell.todos.filter { it.id != goalId }) else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+            s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+        }
+
+        viewModelScope.launch {
+            deleteTodoUseCase(postId = post.id, smallGoalId = planId, todoId = goalId)
+                .onFailure { throwable ->
+                    _uiState.update { s ->
+                        val p = s.postDetail ?: return@update s
+                        val updatedSmallGoals = p.smallGoals.map { plan ->
+                            if (plan.id == planId) plan.copy(todos = (plan.todos + previous).sortedBy { it.position }) else plan
+                        }
+                        val updatedSelected = s.selectedMandalaCell?.let { cell ->
+                            if (cell.id == planId) cell.copy(todos = (cell.todos + previous).sortedBy { it.position }) else cell
+                        }
+                        s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
+                    }
+                    _events.trySend(PostDetailEvent.Error(throwable.message ?: "할 일 삭제에 실패했습니다."))
+                }
         }
     }
 }
