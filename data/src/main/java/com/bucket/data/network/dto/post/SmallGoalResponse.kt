@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SmallGoalResponse(
-    val id: Long,
+    val id: Long? = null,
     val sortOrder: Int,
     val content: String,
     val isComplete: Boolean,

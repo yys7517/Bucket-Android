@@ -1,14 +1,16 @@
 package com.bucket.data.mapper
 
 import com.bucket.data.network.dto.post.PostDetailResponse
+import com.bucket.data.network.dto.post.PostUpdateResponse
 import com.bucket.data.network.dto.post.SmallGoalResponse
 import com.bucket.data.network.dto.post.TodoResponse
-import com.example.domain.model.post.BucketPostDetail
+import com.example.domain.model.post.PostDetail
+import com.example.domain.model.post.PostUpdateResult
 import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.post.Todo
 import com.example.domain.model.user.Author
 
-fun PostDetailResponse.asDomain(author: Author): BucketPostDetail = BucketPostDetail(
+fun PostDetailResponse.asDomain(author: Author): PostDetail = PostDetail(
     id = this.id,
     title = this.goal,
     memo = this.memo,
@@ -23,7 +25,7 @@ fun PostDetailResponse.asDomain(author: Author): BucketPostDetail = BucketPostDe
 )
 
 fun SmallGoalResponse.asSmallGoal(): SmallGoal = SmallGoal(
-    id = this.id,
+    id = this.id ?: 0L,
     sortOrder = this.sortOrder,
     content = this.content,
     isComplete = this.isComplete,
@@ -36,4 +38,12 @@ fun TodoResponse.asTodo(): Todo = Todo(
     content = this.content,
     color = this.color,
     isComplete = this.isComplete,
+    position = this.sortOrder,
+)
+
+fun PostUpdateResponse.asDomain(): PostUpdateResult = PostUpdateResult(
+    id = this.id,
+    title = this.goal,
+    memo = this.memo,
+    startDate = this.startDate,
 )
