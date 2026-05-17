@@ -3,6 +3,7 @@ package com.example.domain.repository.post
 import com.example.domain.model.post.PostDetail
 import com.example.domain.model.post.PostUpdateResult
 import com.example.domain.model.post.LikeResult
+import com.example.domain.model.post.Todo
 import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.user.Author
 
@@ -42,4 +43,28 @@ interface PostRepository {
 
     /** DELETE /posts/{postId}/small-goals/{smallGoalId} — 만다라트 외곽 셀 삭제 */
     suspend fun deleteSmallGoal(postId: Long, smallGoalId: Long): Result<Unit>
+
+    /** POST /posts/{postId}/small-goals/{smallGoalId}/todos — 만다라트 내부 Todo 추가 */
+    suspend fun createTodo(
+        postId: Long,
+        smallGoalId: Long,
+        content: String,
+        color: String,
+        isComplete: Boolean,
+        sortOrder: Int,
+    ): Result<Todo>
+
+    /** PATCH /posts/{postId}/small-goals/{smallGoalId}/todos/{todoId} — 만다라트 내부 Todo 수정 */
+    suspend fun updateTodo(
+        postId: Long,
+        smallGoalId: Long,
+        todoId: Long,
+        content: String,
+        color: String,
+        isComplete: Boolean,
+        sortOrder: Int,
+    ): Result<Todo>
+
+    /** DELETE /posts/{postId}/small-goals/{smallGoalId}/todos/{todoId} — 만다라트 내부 Todo 삭제 */
+    suspend fun deleteTodo(postId: Long, smallGoalId: Long, todoId: Long): Result<Unit>
 }
