@@ -39,7 +39,7 @@ class PostRemoteDataSource @Inject constructor(
             setBody(request)
         }.body()
 
-    override suspend fun deletePost(postId: Long): BaseResponse<String> =
+    override suspend fun deletePost(postId: Long): BaseResponse<String?> =
         client.delete("posts/$postId").body()
 
     override suspend fun createSmallGoal(
@@ -64,6 +64,6 @@ class PostRemoteDataSource @Inject constructor(
     override suspend fun deleteSmallGoal(
         postId: Long,
         smallGoalId: Long,
-    ): BaseResponse<String> =
+    ): BaseResponse<String?> =
         client.delete("posts/$postId/small-goals/$smallGoalId").body()
 }

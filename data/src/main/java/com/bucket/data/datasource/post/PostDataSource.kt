@@ -16,7 +16,7 @@ interface PostDataSource {
         postId: Long,
         request: PostUpdateRequest,
     ): BaseResponse<PostUpdateResponse>
-    suspend fun deletePost(postId: Long): BaseResponse<String>
+    suspend fun deletePost(postId: Long): BaseResponse<String?>
 
     suspend fun createSmallGoal(
         postId: Long,
@@ -32,5 +32,5 @@ interface PostDataSource {
     suspend fun deleteSmallGoal(
         postId: Long,
         smallGoalId: Long,
-    ): BaseResponse<String>
+    ): BaseResponse<String?>
 }
