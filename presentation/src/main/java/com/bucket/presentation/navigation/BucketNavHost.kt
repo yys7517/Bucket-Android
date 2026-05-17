@@ -18,7 +18,7 @@ import com.bucket.presentation.BucketAppState
 import com.example.domain.model.user.Author
 import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.ui.category.CategoryRoute
-import com.bucket.presentation.ui.detail.BucketDetailRoute
+import com.bucket.presentation.ui.detail.PostDetailRoute
 import com.bucket.presentation.ui.home.HomeRoute
 import com.bucket.presentation.ui.login.LoginRoute
 import com.bucket.presentation.ui.splash.SplashRoute
@@ -75,8 +75,8 @@ fun BucketNavHost(
             )
         ) { backStackEntry ->
             val args = backStackEntry.arguments
-            BucketDetailRoute(
-                bucketId = args?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L,
+            PostDetailRoute(
+                postId = args?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L,
                 author = Author(
                     userId = args?.getLong(BucketRoute.BucketDetail.ARG_USER_ID) ?: 0L,
                     username = args?.getString(BucketRoute.BucketDetail.ARG_USERNAME).orEmpty(),
