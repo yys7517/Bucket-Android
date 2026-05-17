@@ -5,4 +5,5 @@ data class Todo(
     val content: String,
     val color: String,
     val isComplete: Boolean,
+    val position: Int = 0,
 )

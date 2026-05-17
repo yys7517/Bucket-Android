@@ -2,7 +2,7 @@ package com.example.domain.model.post
 
 import com.example.domain.model.user.Author
 
-data class BucketPostDetail(
+data class PostDetail(
     val id: Long,
     val title: String,
     val memo: String,
