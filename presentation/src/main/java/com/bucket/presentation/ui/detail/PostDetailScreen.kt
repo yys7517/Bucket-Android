@@ -867,23 +867,39 @@ private fun MandalaSmallGoalCell(goal: Todo, onClick: () -> Unit, modifier: Modi
             .border(1.5.dp, cellColor.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
             .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.align(Alignment.TopStart),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(cellColor))
+        // 좌상단 뱃지: 완료면 체크 배지, 미완료면 색상 점
+        Box(modifier = Modifier.align(Alignment.TopStart)) {
             if (goal.isComplete) {
                 Box(
-                    modifier = Modifier.size(14.dp).clip(CircleShape).background(cellColor),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(cellColor),
                     contentAlignment = Alignment.Center
-                ) { Text("✓", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
+                ) {
+                    CheckIcon(modifier = Modifier.size(10.dp), color = Color.White)
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(cellColor)
+                )
             }
         }
+        // 텍스트: 셀 정중앙
         Text(
-            text = goal.content, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            text = goal.content,
+            color = Ink,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
         )
     }
 }
