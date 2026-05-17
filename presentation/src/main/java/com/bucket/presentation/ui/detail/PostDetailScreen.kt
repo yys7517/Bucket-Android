@@ -239,7 +239,7 @@ fun PostDetailScreen(
         MandalaModal(
             plan = selectedCell,
             postTitle = post.title,
-            accentColor = categoryAccent(post.category, post.categoryColor),
+            accentColor = selectedCell.color.toComposeColor(),
             isMine = post.isMine,
             usedSmallGoalColors = post.smallGoals.map { it.color }.toSet(),
             onDismiss = onDismissMandalaModal,
