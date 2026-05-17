@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -59,7 +58,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -132,6 +130,9 @@ fun PostDetailRoute(
                     Toast.makeText(context, "게시글이 삭제되었습니다", Toast.LENGTH_SHORT).show()
                     onBackClick()
                 }
+                is PostDetailEvent.PlanUpdated -> {
+                    Toast.makeText(context, "수정되었습니다", Toast.LENGTH_SHORT).show()
+                }
                 is PostDetailEvent.Error -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
@@ -145,9 +146,10 @@ fun PostDetailRoute(
         onBackClick = onBackClick,
         onLikeClick = { viewModel.toggleLike(postId) },
         onSelectMandalaCell = viewModel::selectMandalaCell,
-        onDrillDown = viewModel::drillDown,
-        onExitDrillDown = viewModel::exitDrillDown,
+        onDismissMandalaModal = viewModel::dismissMandalaModal,
         onAddPlan = { content, color, isComplete, sortOrder -> viewModel.addPlan(content, color, isComplete, sortOrder) },
+        onUpdatePlan = { smallGoalId, content, color, isComplete -> viewModel.updatePlan(smallGoalId, content, color, isComplete) },
+        onDeletePlan = { smallGoalId -> viewModel.deletePlan(smallGoalId) },
         onAddSmallGoal = { planId, content, color, isComplete, position -> viewModel.addSmallGoal(planId, content, color, isComplete, position) },
         onUpdateSmallGoal = viewModel::updateSmallGoal,
         onDeleteSmallGoal = viewModel::deleteSmallGoal,
@@ -164,9 +166,10 @@ fun PostDetailScreen(
     onBackClick: () -> Unit,
     onLikeClick: () -> Unit = {},
     onSelectMandalaCell: (SmallGoal) -> Unit = {},
-    onDrillDown: (SmallGoal) -> Unit = {},
-    onExitDrillDown: () -> Unit = {},
+    onDismissMandalaModal: () -> Unit = {},
     onAddPlan: (content: String, color: String, isComplete: Boolean, sortOrder: Int) -> Unit = { _, _, _, _ -> },
+    onUpdatePlan: (smallGoalId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _ -> },
+    onDeletePlan: (smallGoalId: Long) -> Unit = {},
     onAddSmallGoal: (planId: Long, content: String, color: String, isComplete: Boolean, position: Int) -> Unit = { _, _, _, _, _ -> },
     onUpdateSmallGoal: (planId: Long, goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _, _ -> },
     onDeleteSmallGoal: (planId: Long, goalId: Long) -> Unit = { _, _ -> },
@@ -175,29 +178,10 @@ fun PostDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val post = uiState.postDetail
-
-    var showEditSheet by rememberSaveable(post?.id, post?.isMine) {
-        mutableStateOf(false)
-    }
-
-    val listState = rememberLazyListState()
-    val density = LocalDensity.current
-    val selectedCell = uiState.selectedMandalaCell
-    LaunchedEffect(selectedCell) {
-        if (selectedCell != null) {
-            listState.animateScrollBy(with(density) { 120.dp.toPx() })
-        }
-    }
-    val drillDownPlan = uiState.drillDownPlan
-    LaunchedEffect(drillDownPlan) {
-        if (drillDownPlan != null) {
-            listState.animateScrollBy(with(density) { 160.dp.toPx() })
-        }
-    }
+    var showEditSheet by rememberSaveable(post?.id, post?.isMine) { mutableStateOf(false) }
 
     Surface(modifier = modifier.fillMaxSize(), color = HomeBackground) {
         LazyColumn(
-            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = WindowInsets.statusBars.asPaddingValues().let {
                 PaddingValues(
@@ -209,9 +193,7 @@ fun PostDetailScreen(
             },
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            item {
-                DetailTopBar(onBackClick = onBackClick)
-            }
+            item { DetailTopBar(onBackClick = onBackClick) }
             when {
                 uiState.isLoading -> item {
                     Text(text = "불러오는 중...", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -237,44 +219,45 @@ fun PostDetailScreen(
                             onEditClick = { showEditSheet = true },
                         )
                     }
-
                     item {
-                        val drillDownPlan = uiState.drillDownPlan
-                        if (drillDownPlan != null) {
-                            MandalaDetailView(
-                                postTitle = post.title,
-                                plan = drillDownPlan,
-                                accentColor = accentColor,
-                                isMine = post.isMine,
-                                onExitDrillDown = onExitDrillDown,
-                                onAddSmallGoal = { content, color, isComplete, position ->
-                                    onAddSmallGoal(drillDownPlan.id, content, color, isComplete, position)
-                                },
-                                onUpdateSmallGoal = { goalId, content, color, isComplete ->
-                                    onUpdateSmallGoal(drillDownPlan.id, goalId, content, color, isComplete)
-                                },
-                                onDeleteSmallGoal = { goalId ->
-                                    onDeleteSmallGoal(drillDownPlan.id, goalId)
-                                },
-                            )
-                        } else {
-                            MandalaSection(
-                                post = post,
-                                accentColor = accentColor,
-                                isMine = post.isMine,
-                                selectedCell = uiState.selectedMandalaCell,
-                                onSelectCell = onSelectMandalaCell,
-                                onDrillDown = onDrillDown,
-                                onAddPlan = onAddPlan,
-                            )
-                        }
+                        MandalaSection(
+                            post = post,
+                            accentColor = accentColor,
+                            isMine = post.isMine,
+                            onSelectCell = onSelectMandalaCell,
+                            onAddPlan = onAddPlan,
+                        )
                     }
                 }
             }
         }
     }
 
-    // ── 편집 바텀시트 (isMine=true 전용)
+    // ── 만다라트 모달 (셀 탭 시)
+    val selectedCell = uiState.selectedMandalaCell
+    if (selectedCell != null && post != null) {
+        MandalaModal(
+            plan = selectedCell,
+            postTitle = post.title,
+            accentColor = categoryAccent(post.category, post.categoryColor),
+            isMine = post.isMine,
+            usedSmallGoalColors = post.smallGoals.map { it.color }.toSet(),
+            onDismiss = onDismissMandalaModal,
+            onUpdatePlan = { content, color, isComplete ->
+                onUpdatePlan(selectedCell.id, content, color, isComplete)
+            },
+            onDeletePlan = { onDeletePlan(selectedCell.id) },
+            onAddTodo = { content, color, isComplete, position ->
+                onAddSmallGoal(selectedCell.id, content, color, isComplete, position)
+            },
+            onUpdateTodo = { goalId, content, color, isComplete ->
+                onUpdateSmallGoal(selectedCell.id, goalId, content, color, isComplete)
+            },
+            onDeleteTodo = { goalId -> onDeleteSmallGoal(selectedCell.id, goalId) },
+        )
+    }
+
+    // ── 게시글 편집 바텀시트 (isMine=true 전용)
     if (showEditSheet && post != null && post.isMine) {
         PostEditBottomSheet(
             post = post,
@@ -405,9 +388,7 @@ private fun MandalaSection(
     post: PostDetail,
     accentColor: Color,
     isMine: Boolean,
-    selectedCell: SmallGoal?,
     onSelectCell: (SmallGoal) -> Unit,
-    onDrillDown: (SmallGoal) -> Unit,
     onAddPlan: (content: String, color: String, isComplete: Boolean, sortOrder: Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -420,9 +401,7 @@ private fun MandalaSection(
             post = post,
             accentColor = accentColor,
             isMine = isMine,
-            selectedCell = selectedCell,
             onSelectCell = onSelectCell,
-            onDrillDown = onDrillDown,
             onAddPlan = onAddPlan,
         )
     }
@@ -433,9 +412,7 @@ private fun MandalaGridView(
     post: PostDetail,
     accentColor: Color,
     isMine: Boolean,
-    selectedCell: SmallGoal?,
     onSelectCell: (SmallGoal) -> Unit,
-    onDrillDown: (SmallGoal) -> Unit,
     onAddPlan: (content: String, color: String, isComplete: Boolean, sortOrder: Int) -> Unit,
 ) {
     var showAddPlanSheet by remember { mutableStateOf(false) }
@@ -448,87 +425,68 @@ private fun MandalaGridView(
         }
         .toMap()
 
-    // 3x3 position: index 4 is center(position 5), outer cells use 1,2,3,4,6,7,8,9.
+    // 이미 사용된 색상 목록 (작은 목표들의 색상)
+    val usedPlanColors = remember(post.smallGoals) {
+        post.smallGoals.map { it.color }.toSet()
+    }
+
     val cells: List<SmallGoal?> = buildList {
         repeat(9) { idx ->
             add(mandalaGridPosition(idx)?.let { plansByPosition[it] })
         }
     }
 
-    // 그리드 카드 + 선택 바를 하나의 흰색 카드로 통합 (연결된 느낌)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(Color.White)
             .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // 3×3 그리드
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            for (row in 0 until 3) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (col in 0 until 3) {
-                        val idx = row * 3 + col
-                        val plan = cells[idx]
-                        when {
-                            idx == 4 -> MandalaCenter(
-                                title = post.title,
-                                label = "큰 목표",
-                                accentColor = accentColor,
+        for (row in 0 until 3) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (col in 0 until 3) {
+                    val idx = row * 3 + col
+                    val plan = cells[idx]
+                    when {
+                        idx == 4 -> MandalaCenter(
+                            title = post.title,
+                            label = "큰 목표",
+                            accentColor = accentColor,
+                            modifier = Modifier.weight(1f)
+                        )
+                        plan != null -> MandalaPlanCell(
+                            plan = plan,
+                            isSelected = false,
+                            onClick = { onSelectCell(plan) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        else -> {
+                            val targetSortOrder = mandalaGridPosition(idx) ?: 1
+                            MandalaEmptyPlanCell(
+                                isMine = isMine,
+                                onAdd = { pendingSortOrder = targetSortOrder; showAddPlanSheet = true },
                                 modifier = Modifier.weight(1f)
                             )
-                            plan != null -> MandalaPlanCell(
-                                plan = plan,
-                                isSelected = selectedCell?.id == plan.id,
-                                onClick = {
-                                    when {
-                                        !isMine -> onDrillDown(plan)
-                                        plan.todos.isNotEmpty() -> onDrillDown(plan)
-                                        else -> onSelectCell(plan)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            else -> {
-                                val targetSortOrder = mandalaGridPosition(idx) ?: 1
-                                MandalaEmptyPlanCell(
-                                    isMine = isMine,
-                                    onAdd = { pendingSortOrder = targetSortOrder; showAddPlanSheet = true },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
                         }
                     }
                 }
             }
         }
-
-        // isMine=true이고 셀이 선택됐을 때: 구분선 + 선택 표시 + 만다라트 만들기 버튼
-        if (isMine && selectedCell != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(SoftLine)
-            )
-            MakeMandalaBar(
-                selectedPlan = selectedCell,
-                onMakeMandala = { onDrillDown(selectedCell) },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-            )
-        }
     }
 
     if (showAddPlanSheet) {
         PlanBottomSheet(
+            existingPlan = null,
+            usedColors = usedPlanColors,
             onDismiss = { showAddPlanSheet = false },
             onSave = { content, color, isComplete ->
                 onAddPlan(content, color, isComplete, pendingSortOrder)
                 showAddPlanSheet = false
-            }
+            },
+            onDelete = {},
         )
     }
 }
@@ -543,46 +501,6 @@ private fun Int.asOuterMandalaPositionOrFallback(fallbackIndex: Int): Int =
 
 private fun Int.toOuterMandalaPosition(): Int = if (this < 4) this + 1 else this + 2
 
-/** 선택된 계획 표시 + 만다라트 만들기 버튼 (카드 내부에 배치) */
-@Composable
-private fun MakeMandalaBar(
-    selectedPlan: SmallGoal,
-    onMakeMandala: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val cellColor = selectedPlan.color.toComposeColor()
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(cellColor))
-            Text(
-                text = selectedPlan.content,
-                color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50.dp))
-                .background(Purple)
-                .clickable { onMakeMandala() }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            Text("⊞", color = Color.White, fontSize = 13.sp)
-            Text("만다라트 만들기", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
 
 /** 만다라트 그리드 중앙 셀 — 큰 목표 */
 @Composable
@@ -667,31 +585,33 @@ private fun MandalaEmptyPlanCell(isMine: Boolean, onAdd: () -> Unit, modifier: M
     MandalaEmptyCell(onClick = if (isMine) onAdd else null, showPlus = isMine, modifier = modifier)
 }
 
-// ─── Mandala Drill-Down ───────────────────────────────────────────────────────
+// ─── Mandala Modal ────────────────────────────────────────────────────────────
 //
-// 3×3 배치 (index 기준):
-//   [0] [1] [2]      goals[0] goals[1] goals[2]
-//   [3] [4] [5]  →   goals[3]  CENTER  goals[4]
-//   [6] [7] [8]      goals[5] goals[6] goals[7]
-//
-// isMine=true  → 빈 셀 탭 → 소목표 추가 BottomSheet / 기존 셀 탭 → 편집 BottomSheet
-// isMine=false → 읽기 전용, BottomSheet 없음
+// 셀 탭 시 ModalBottomSheet로 해당 SmallGoal의 만다라트(3×3 todo 그리드)를 표시.
+// isMine=true → 셀 편집/삭제 + todo 추가/편집/삭제 가능.
+// isMine=false → 읽기 전용.
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MandalaDetailView(
-    postTitle: String,
+private fun MandalaModal(
     plan: SmallGoal,
+    postTitle: String,
     accentColor: Color,
     isMine: Boolean,
-    onExitDrillDown: () -> Unit,
-    onAddSmallGoal: (content: String, color: String, isComplete: Boolean, position: Int) -> Unit,
-    onUpdateSmallGoal: (goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit,
-    onDeleteSmallGoal: (goalId: Long) -> Unit,
+    usedSmallGoalColors: Set<String> = emptySet(),
+    onDismiss: () -> Unit,
+    onUpdatePlan: (content: String, color: String, isComplete: Boolean) -> Unit,
+    onDeletePlan: () -> Unit,
+    onAddTodo: (content: String, color: String, isComplete: Boolean, position: Int) -> Unit,
+    onUpdateTodo: (goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit,
+    onDeleteTodo: (goalId: Long) -> Unit,
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var editTarget by remember { mutableStateOf<Todo?>(null) }
-    var showEditSheet by remember { mutableStateOf(false) }
-    var showAddSheet by remember { mutableStateOf(false) }
+    var showTodoSheet by remember { mutableStateOf(false) }
     var pendingPosition by remember { mutableStateOf(0) }
+    var showEditPlanSheet by remember { mutableStateOf(false) }
+    var showDeletePlanConfirm by remember { mutableStateOf(false) }
 
     val todosByPosition = plan.todos
         .sortedBy { it.position }
@@ -701,148 +621,236 @@ private fun MandalaDetailView(
         }
         .toMap()
     val doneCount = plan.todos.count { it.isComplete }
+    val totalCount = plan.todos.size
+    val progressFraction = if (totalCount > 0) doneCount.toFloat() / totalCount else 0f
+    val progressPercent = (progressFraction * 100).toInt()
 
-    // 3x3 position: index 4 is center(position 5), outer cells use 1,2,3,4,6,7,8,9.
+    // 이미 사용된 색상 목록 (할 일들의 색상)
+    val usedTodoColors = remember(plan.todos) {
+        plan.todos.map { it.color }.toSet()
+    }
+
     val cells: List<Todo?> = buildList {
         repeat(9) { idx ->
             add(mandalaGridPosition(idx)?.let { todosByPosition[it] })
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 브레드크럼
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = postTitle, color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            Text(" › ", color = Muted, fontSize = 13.sp)
-            Text(
-                text = plan.content, color = Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        // 제목 + 달성률
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "'${plan.content}'의 만다라트",
-                color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = "$doneCount/${plan.todos.size}",
-                color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold
-            )
-        }
-
-        // 3×3 그리드
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = Color.White,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
-                .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            for (row in 0 until 3) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (col in 0 until 3) {
-                        val idx = row * 3 + col
-                        val goal = cells[idx]
-                        when {
-                            idx == 4 -> MandalaCenter(
-                                title = plan.content,
-                                label = "작은 목표",
-                                accentColor = accentColor,
-                                modifier = Modifier.weight(1f)
+            // ── 헤더 행: 작은 목표 chip + 편집/삭제/닫기 버튼
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 작은 목표 칩
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(accentColor.copy(alpha = 0.13f))
+                        .border(1.dp, accentColor.copy(alpha = 0.18f), RoundedCornerShape(50.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(accentColor))
+                    Spacer(Modifier.width(6.dp))
+                    Text(text = "작은 목표", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                // 버튼 그룹
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isMine) {
+                        CircleIconButton(onClick = { showEditPlanSheet = true }) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_edit),
+                                contentDescription = "편집",
+                                modifier = Modifier.size(18.dp),
+                                colorFilter = ColorFilter.tint(Color(0xFF6E687D))
                             )
-                            goal != null -> MandalaSmallGoalCell(
-                                goal = goal,
-                                onClick = {
-                                    if (isMine) {
-                                        editTarget = goal
-                                        showEditSheet = true
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            else -> {
-                                val position = mandalaGridPosition(idx) ?: 1
-                                MandalaEmptySmallGoalCell(
-                                    onClick = { if (isMine) { pendingPosition = position; showAddSheet = true } },
-                                    isMine = isMine,
+                        }
+                        CircleIconButton(onClick = { showDeletePlanConfirm = true }) {
+                            // 휴지통 아이콘 (Canvas로 그리기)
+                            TrashIcon(modifier = Modifier.size(18.dp), color = Color(0xFFE04D5F))
+                        }
+                    }
+                    // 닫기 버튼 (항상 표시)
+                    CircleIconButton(onClick = onDismiss) {
+                        CloseIcon(modifier = Modifier.size(16.dp), color = Color(0xFF6E687D))
+                    }
+                }
+            }
+
+            // ── 모달 제목
+            Text(
+                text = "'${plan.content}'의 만다라트",
+                color = Ink, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+
+            // ── 진행 바 행: "할 일 X/Y [bar] X%"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("할 일 ", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("$doneCount", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("/$totalCount", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(accentColor.copy(alpha = 0.14f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(accentColor)
+                    )
+                }
+                Text(
+                    text = "$progressPercent%",
+                    color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                )
+            }
+
+            // ── 3×3 todo 그리드
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFFAF8FE))
+                    .border(1.dp, SoftLine, RoundedCornerShape(20.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                for (row in 0 until 3) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (col in 0 until 3) {
+                            val idx = row * 3 + col
+                            val goal = cells[idx]
+                            when {
+                                idx == 4 -> MandalaCenter(
+                                    title = plan.content,
+                                    label = "작은 목표",
+                                    accentColor = accentColor,
                                     modifier = Modifier.weight(1f)
                                 )
+                                goal != null -> MandalaSmallGoalCell(
+                                    goal = goal,
+                                    onClick = {
+                                        if (isMine) { editTarget = goal; showTodoSheet = true }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                else -> {
+                                    val position = mandalaGridPosition(idx) ?: 1
+                                    MandalaEmptySmallGoalCell(
+                                        onClick = { if (isMine) { pendingPosition = position; editTarget = null; showTodoSheet = true } },
+                                        isMine = isMine,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // 큰 목표로 돌아가기
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .border(1.dp, SoftLine, RoundedCornerShape(16.dp))
-                .clickable { onExitDrillDown() }
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                MiniMandalaIcon(accentColor = accentColor)
-                Column {
-                    Text(text = "큰 목표로 돌아가기", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            // ── 힌트 텍스트 (isMine일 때만)
+            if (isMine) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = postTitle, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                        text = "+ 빈 칸을 눌러 할 일을 추가할 수 있어요",
+                        color = Muted.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
-            Text(text = "›", color = Muted, fontSize = 20.sp)
+            Spacer(Modifier.height(4.dp))
         }
     }
 
-    // 기존 소목표 편집 (isMine=true만 열림)
-    if (showEditSheet && editTarget != null) {
+    // todo 추가/편집 시트
+    if (showTodoSheet) {
         SmallGoalBottomSheet(
             existingGoal = editTarget,
-            onDismiss = { showEditSheet = false; editTarget = null },
+            planName = plan.content,
+            planColor = plan.color,
+            usedColors = if (editTarget != null) {
+                usedTodoColors - editTarget!!.color
+            } else {
+                usedTodoColors
+            },
+            onDismiss = { showTodoSheet = false; editTarget = null },
             onSave = { content, color, isComplete ->
-                onUpdateSmallGoal(editTarget!!.id, content, color, isComplete)
-                showEditSheet = false; editTarget = null
+                val target = editTarget
+                if (target != null) onUpdateTodo(target.id, content, color, isComplete)
+                else onAddTodo(content, color, isComplete, pendingPosition)
+                showTodoSheet = false; editTarget = null
             },
             onDelete = {
-                onDeleteSmallGoal(editTarget!!.id)
-                showEditSheet = false; editTarget = null
+                editTarget?.let { onDeleteTodo(it.id) }
+                showTodoSheet = false; editTarget = null
             }
         )
     }
 
-    // 새 소목표 추가 (isMine=true만 열림)
-    if (showAddSheet) {
-        SmallGoalBottomSheet(
-            existingGoal = null,
-            onDismiss = { showAddSheet = false },
+    // SmallGoal(외곽 셀) 편집 시트
+    if (showEditPlanSheet) {
+        PlanBottomSheet(
+            existingPlan = plan,
+            usedColors = usedSmallGoalColors - plan.color, // 현재 목표의 색상 제외
+            onDismiss = { showEditPlanSheet = false },
             onSave = { content, color, isComplete ->
-                onAddSmallGoal(content, color, isComplete, pendingPosition)
-                showAddSheet = false
+                onUpdatePlan(content, color, isComplete)
+                showEditPlanSheet = false
             },
-            onDelete = {}
+            onDelete = { showDeletePlanConfirm = true; showEditPlanSheet = false },
+        )
+    }
+
+    // SmallGoal 삭제 확인 다이얼로그
+    if (showDeletePlanConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeletePlanConfirm = false },
+            title = { Text("목표 삭제", fontWeight = FontWeight.ExtraBold) },
+            text = { Text("'${plan.content}'을 삭제할까요? 삭제 후 복구할 수 없습니다.") },
+            confirmButton = {
+                TextButton(onClick = { showDeletePlanConfirm = false; onDeletePlan(); onDismiss() }) {
+                    Text("삭제", color = Color(0xFFE04D5F), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeletePlanConfirm = false }) {
+                    Text("취소", color = Ink)
+                }
+            }
         )
     }
 }
@@ -946,44 +954,17 @@ private fun MandalaEmptyCell(
     }
 }
 
-/** 큰 목표로 돌아가기 카드의 미니 9칸 아이콘 */
-@Composable
-private fun MiniMandalaIcon(accentColor: Color) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(accentColor.copy(alpha = 0.10f))
-            .border(1.dp, accentColor.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-            .padding(5.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            for (r in 0 until 3) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    for (c in 0 until 3) {
-                        val isCenter = r == 1 && c == 1
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (isCenter) accentColor else accentColor.copy(alpha = 0.25f))
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
 //
 // MANDALA_COLORS 8가지를 2×4 그리드로 보여주고, 선택된 색에는 outer ring 표시.
+// usedColors 에 포함된 색상에만 체크 표시 (이미 사용된 색상만 체크).
 
 @Composable
 private fun ColorPicker(
     selectedColor: String,
     onColorSelected: (String) -> Unit,
+    usedColors: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
     colors: List<String> = MANDALA_COLORS,
 ) {
@@ -1004,6 +985,7 @@ private fun ColorPicker(
                         ColorSwatch(
                             color = hex,
                             isSelected = hex == selectedColor,
+                            isUsed = hex in usedColors,
                             onClick = { onColorSelected(hex) },
                         )
                     } else {
@@ -1019,6 +1001,7 @@ private fun ColorPicker(
 private fun ColorSwatch(
     color: String,
     isSelected: Boolean,
+    isUsed: Boolean,
     onClick: () -> Unit,
 ) {
     val composeColor = color.toComposeColor()
@@ -1046,156 +1029,33 @@ private fun ColorSwatch(
                 .background(composeColor),
             contentAlignment = Alignment.Center
         ) {
-            CheckIcon(modifier = Modifier.size(20.dp), color = Color.White)
+            // 이미 사용된 색상에만 체크 표시
+            if (isUsed) {
+                CheckIcon(modifier = Modifier.size(20.dp), color = Color.White)
+            }
         }
     }
 }
 
 // ─── Plan BottomSheet ─────────────────────────────────────────────────────────
+// 작은 목표 추가 / 수정 바텀 시트
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlanBottomSheet(
-    onDismiss: () -> Unit,
-    onSave: (content: String, color: String, isComplete: Boolean) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var name by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf(MANDALA_COLORS[0]) }
-    var isComplete by remember { mutableStateOf(false) }
-    val canSave = name.isNotBlank()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = Color.White,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)
-        ) {
-            Text(
-                text = "목표 추가",
-                color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(66.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("제목", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BasicTextField(
-                        value = name,
-                        onValueChange = { if (it.length <= 15) name = it },
-                        modifier = Modifier.fillMaxWidth().height(36.dp),
-                        singleLine = true,
-                        textStyle = TextStyle(color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        decorationBox = { innerTextField ->
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-                                if (name.isEmpty()) {
-                                    Text(
-                                        text = "목표를 입력해 주세요",
-                                        color = Color(0xFFB0AABC),
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-                    )
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF4A4652)))
-                    Text(
-                        text = "${name.length} / 16",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.End,
-                        color = Color(0xFF4A4652),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // 색상 선택
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("색상", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                ColorPicker(
-                    selectedColor = selectedColor,
-                    onColorSelected = { selectedColor = it },
-                )
-            }
-
-            // 달성 상태
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text("달성 상태", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isComplete) "달성" else "미달성",
-                        color = Ink,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Switch(
-                        checked = isComplete,
-                        onCheckedChange = { isComplete = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Purple,
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFD7DAE0),
-                            uncheckedBorderColor = Color.Transparent
-                        )
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (canSave) Purple else Color(0xFFD7DAE0))
-                    .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("저장", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-    }
-}
-
-// ─── Small Goal BottomSheet ───────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SmallGoalBottomSheet(
-    existingGoal: Todo?,
+    existingPlan: SmallGoal?,
+    usedColors: Set<String> = emptySet(),
     onDismiss: () -> Unit,
     onSave: (content: String, color: String, isComplete: Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var name by remember { mutableStateOf(existingGoal?.content ?: "") }
-    var selectedColor by remember { mutableStateOf(existingGoal?.color ?: MANDALA_COLORS[0]) }
-    var isComplete by remember { mutableStateOf(existingGoal?.isComplete ?: false) }
+    var name by remember { mutableStateOf(existingPlan?.content ?: "") }
+    var selectedColor by remember { mutableStateOf(existingPlan?.color ?: MANDALA_COLORS[0]) }
+    var isComplete by remember { mutableStateOf(existingPlan?.isComplete ?: false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val canSave = name.isNotBlank()
+    val maxLength = 20
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1209,127 +1069,127 @@ private fun SmallGoalBottomSheet(
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
+            // ── 타이틀
             Text(
-                text = "계획",
+                text = if (existingPlan != null) "작은 목표 수정" else "작은 목표 추가",
                 color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(66.dp)) {
-                    Text("이름", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BasicTextField(
-                            value = name,
-                            onValueChange = { if (it.length <= 20) name = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(36.dp),
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = Ink,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                            decorationBox = { innerTextField ->
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    if (name.isEmpty()) {
-                                        Text(
-                                            text = "작은 목표를 입력해 주세요",
-                                            color = Color(0xFFB0AABC),
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                    innerTextField()
-                                }
+            // ── 이름 입력
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("이름", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                BasicTextField(
+                    value = name,
+                    onValueChange = { if (it.length <= maxLength) name = it },
+                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    decorationBox = { innerTextField ->
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (name.isEmpty()) {
+                                Text(
+                                    text = "이름을 입력해 주세요",
+                                    color = Color(0xFFB0AABC),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(Color(0xFF4A4652))
-                        )
-                        Text(
-                            text = "${name.length} / 20",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.End,
-                            color = Color(0xFF4A4652),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                            innerTextField()
+                        }
                     }
-                }
-
-                // 색상 선택
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("색상", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                    ColorPicker(
-                        selectedColor = selectedColor,
-                        onColorSelected = { selectedColor = it },
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("달성 상태", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isComplete) "달성" else "미달성",
-                            color = Ink,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Switch(
-                            checked = isComplete,
-                            onCheckedChange = { isComplete = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Purple,
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color(0xFFD7DAE0),
-                                uncheckedBorderColor = Color.Transparent
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(22.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (canSave) Purple else Color(0xFFD7DAE0))
-                    .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("저장", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            if (existingGoal != null) {
-                Text(
-                    text = "삭제",
-                    color = Color(0xFFE04D5F),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                )
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { showDeleteConfirm = true }
-                        .padding(vertical = 12.dp),
-                    textAlign = TextAlign.Center
+                        .height(1.dp)
+                        .background(Purple.copy(alpha = 0.4f))
                 )
+                Text(
+                    text = "${name.length} / $maxLength",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End,
+                    color = Muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // ── 색상 선택
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("색상", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                ColorPicker(
+                    selectedColor = selectedColor,
+                    onColorSelected = { selectedColor = it },
+                    usedColors = usedColors,
+                )
+            }
+
+            // ── 완성 여부
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFFAF8FE))
+                    .border(1.dp, SoftLine, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("완성 여부", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        text = if (isComplete) "달성률에 반영되었어요" else "완료했으면 켜주세요",
+                        color = Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Switch(
+                    checked = isComplete,
+                    onCheckedChange = { isComplete = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Purple,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFD7DAE0),
+                        uncheckedBorderColor = Color.Transparent
+                    )
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ── 하단 버튼: [삭제] [완료]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (existingPlan != null) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(Color(0xFFE4E2EB))
+                            .clickable { showDeleteConfirm = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("삭제", color = Color(0xFF6E687D), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(if (existingPlan != null) 1.6f else 1f)
+                        .height(54.dp)
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(if (canSave) Purple else Color(0xFFD7DAE0))
+                        .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("완료", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                }
             }
             Spacer(Modifier.height(10.dp))
         }
@@ -1340,6 +1200,223 @@ private fun SmallGoalBottomSheet(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("목표 삭제", fontWeight = FontWeight.ExtraBold) },
             text = { Text("이 목표를 삭제할까요? 삭제 후 복구할 수 없습니다.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
+                    Text("삭제", color = Color(0xFFE04D5F), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("취소", color = Ink)
+                }
+            }
+        )
+    }
+}
+
+// ─── Small Goal BottomSheet ───────────────────────────────────────────────────
+// 할 일 추가 / 수정 바텀 시트
+// planName, planColor: 상단 칩에 표시할 작은 목표 이름/색상
+// usedColors: 이미 사용된 색상 집합 (해당 색에만 체크 표시)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SmallGoalBottomSheet(
+    existingGoal: Todo?,
+    planName: String = "",
+    planColor: String = MANDALA_COLORS[0],
+    usedColors: Set<String> = emptySet(),
+    onDismiss: () -> Unit,
+    onSave: (content: String, color: String, isComplete: Boolean) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var name by remember { mutableStateOf(existingGoal?.content ?: "") }
+    var selectedColor by remember { mutableStateOf(existingGoal?.color ?: MANDALA_COLORS[0]) }
+    var isComplete by remember { mutableStateOf(existingGoal?.isComplete ?: false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val canSave = name.isNotBlank()
+    val maxLength = 20
+    val planAccentColor = planColor.toComposeColor()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = Color.White,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
+        ) {
+            // ── 헤더: 작은 목표 칩 (좌) + 타이틀 (중앙)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // 작은 목표 이름 칩
+                if (planName.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(planAccentColor.copy(alpha = 0.13f))
+                            .border(1.dp, planAccentColor.copy(alpha = 0.18f), RoundedCornerShape(50.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(planAccentColor))
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = planName,
+                            color = planAccentColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                // 타이틀
+                Text(
+                    text = if (existingGoal != null) "할 일 수정" else "할 일 추가",
+                    color = Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+
+            // ── 이름 입력
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("이름", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                BasicTextField(
+                    value = name,
+                    onValueChange = { if (it.length <= maxLength) name = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp),
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = Ink,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (name.isEmpty()) {
+                                Text(
+                                    text = "이름을 입력해 주세요",
+                                    color = Color(0xFFB0AABC),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Purple.copy(alpha = 0.4f))
+                )
+                Text(
+                    text = "${name.length} / $maxLength",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End,
+                    color = Muted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // ── 색상 선택
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("색상", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                ColorPicker(
+                    selectedColor = selectedColor,
+                    onColorSelected = { selectedColor = it },
+                    usedColors = usedColors,
+                )
+            }
+
+            // ── 완성 여부
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFFAF8FE))
+                    .border(1.dp, SoftLine, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("완성 여부", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        text = if (isComplete) "달성률에 반영되었어요" else "완료했으면 켜주세요",
+                        color = Muted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Switch(
+                    checked = isComplete,
+                    onCheckedChange = { isComplete = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Purple,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFD7DAE0),
+                        uncheckedBorderColor = Color.Transparent
+                    )
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            // ── 하단 버튼: [삭제] [입력]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (existingGoal != null) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(Color(0xFFE4E2EB))
+                            .clickable { showDeleteConfirm = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("삭제", color = Color(0xFF6E687D), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(if (existingGoal != null) 1.6f else 1f)
+                        .height(54.dp)
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(if (canSave) Purple else Color(0xFFD7DAE0))
+                        .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("입력", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("할 일 삭제", fontWeight = FontWeight.ExtraBold) },
+            text = { Text("이 할 일을 삭제할까요? 삭제 후 복구할 수 없습니다.") },
             confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
                     Text("삭제", color = Color(0xFFE04D5F), fontWeight = FontWeight.Bold)
@@ -1873,6 +1950,29 @@ private fun CloseIcon(modifier: Modifier = Modifier, color: Color) {
     }
 }
 
+/** 휴지통 아이콘 (Canvas) */
+@Composable
+private fun TrashIcon(modifier: Modifier = Modifier, color: Color) {
+    Canvas(modifier) {
+        val stroke = 2.0.dp.toPx()
+        val cap = StrokeCap.Round
+        // 뚜껑
+        drawLine(color, Offset(size.width * 0.18f, size.height * 0.28f), Offset(size.width * 0.82f, size.height * 0.28f), stroke, cap)
+        // 손잡이
+        drawLine(color, Offset(size.width * 0.38f, size.height * 0.18f), Offset(size.width * 0.62f, size.height * 0.18f), stroke, cap)
+        // 몸통 왼쪽
+        drawLine(color, Offset(size.width * 0.26f, size.height * 0.28f), Offset(size.width * 0.30f, size.height * 0.82f), stroke, cap)
+        // 몸통 오른쪽
+        drawLine(color, Offset(size.width * 0.74f, size.height * 0.28f), Offset(size.width * 0.70f, size.height * 0.82f), stroke, cap)
+        // 바닥
+        drawLine(color, Offset(size.width * 0.30f, size.height * 0.82f), Offset(size.width * 0.70f, size.height * 0.82f), stroke, cap)
+        // 내부 선 왼쪽
+        drawLine(color, Offset(size.width * 0.42f, size.height * 0.38f), Offset(size.width * 0.42f, size.height * 0.72f), stroke, cap)
+        // 내부 선 오른쪽
+        drawLine(color, Offset(size.width * 0.58f, size.height * 0.38f), Offset(size.width * 0.58f, size.height * 0.72f), stroke, cap)
+    }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 private fun String.toKoreanDateText(): String {
@@ -1923,35 +2023,10 @@ private fun MandalaGridPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 430, heightDp = 932)
-@Composable
-private fun MandalaGridSelectedPreview() {
-    val plans = listOf(
-        SmallGoal(id = 1, sortOrder = 1, content = "면접 준비", isComplete = true, color = "#8D6BE8",
-            todos = listOf(Todo(11, "모의면접", "#8D6BE8", true))),
-        SmallGoal(id = 2, sortOrder = 2, content = "자기소개서", isComplete = false, color = "#E8736B"),
-        SmallGoal(id = 3, sortOrder = 3, content = "포트폴리오", isComplete = false, color = "#E8A06B"),
-    )
-    BucketappTheme(dynamicColor = false) {
-        PostDetailScreen(
-            uiState = PostDetailUiState(
-                selectedMandalaCell = plans[0],
-                postDetail = PostDetail(
-                    id = 13, title = "대기업 입사", memo = "내년 상반기 공채 합격이 목표.",
-                    category = "학습", categoryColor = "#8D6BE8",
-                    likeCount = 243, startDate = "2026-05-13",
-                    author = Author(userId = 2, username = "jiwon", profileImgUrl = ""),
-                    smallGoals = plans, isLiked = true, isMine = true
-                )
-            ),
-            onBackClick = {}
-        )
-    }
-}
 
 @Preview(showBackground = true, widthDp = 430, heightDp = 932)
 @Composable
-private fun MandalaDetailPreview() {
+private fun MandalaModalPreview() {
     val plan = SmallGoal(
         id = 1, sortOrder = 1, content = "면접 준비", isComplete = true, color = "#8D6BE8",
         todos = listOf(
@@ -1965,7 +2040,7 @@ private fun MandalaDetailPreview() {
     BucketappTheme(dynamicColor = false) {
         PostDetailScreen(
             uiState = PostDetailUiState(
-                drillDownPlan = plan,
+                selectedMandalaCell = plan,
                 postDetail = PostDetail(
                     id = 13, title = "대기업 입사", memo = "",
                     category = "학습", categoryColor = "#8D6BE8",

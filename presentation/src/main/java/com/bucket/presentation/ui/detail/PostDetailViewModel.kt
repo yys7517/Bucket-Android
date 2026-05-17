@@ -29,8 +29,7 @@ data class PostDetailUiState(
     val errorMessage: String? = null,
     val isLiked: Boolean = false,
     val likeCount: Int = 0,
-    val drillDownPlan: SmallGoal? = null,
-    /** 만다라트 그리드에서 현재 선택된 계획 셀 (isMine=true 전용) */
+    /** 탭된 외곽 셀 — non-null이면 만다라트 모달 표시 */
     val selectedMandalaCell: SmallGoal? = null,
     /** 편집/삭제 진행 중 표시 (바텀시트 버튼 비활성화 등에 사용) */
     val isMutating: Boolean = false,
@@ -40,6 +39,7 @@ data class PostDetailUiState(
 sealed interface PostDetailEvent {
     data object PostUpdated : PostDetailEvent
     data object PostDeleted : PostDetailEvent
+    data object PlanUpdated : PostDetailEvent
     data class Error(val message: String) : PostDetailEvent
 }
 
@@ -97,21 +97,21 @@ class PostDetailViewModel @Inject constructor(
             getPostDetailUseCase(postId, author)
                 .onSuccess { post ->
                     _uiState.update { state ->
-                        val freshDrillDown = state.drillDownPlan?.let { current ->
+                        val freshSelected = state.selectedMandalaCell?.let { current ->
                             post.smallGoals.firstOrNull { it.id == current.id }
                         }
                         state.copy(
                             postDetail = post,
                             isLiked = post.isLiked,
                             likeCount = post.likeCount,
-                            drillDownPlan = freshDrillDown,
+                            selectedMandalaCell = freshSelected,
                         )
                     }
                 }
         }
     }
 
-    /** 만다라트 그리드에서 셀 선택/해제 토글 (isMine=true 전용) */
+    /** 셀 탭 → 모달 열기. 같은 셀 재탭 시 해제. */
     fun selectMandalaCell(plan: SmallGoal) {
         _uiState.update { state ->
             val next = if (state.selectedMandalaCell?.id == plan.id) null else plan
@@ -119,13 +119,9 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    fun drillDown(plan: SmallGoal) {
-        _uiState.update { it.copy(drillDownPlan = plan, selectedMandalaCell = null) }
-        refreshSilently()
-    }
-
-    fun exitDrillDown() {
-        _uiState.update { it.copy(drillDownPlan = null, selectedMandalaCell = null) }
+    /** 모달 닫기 → 선택 해제 + 백그라운드 재조회 */
+    fun dismissMandalaModal() {
+        _uiState.update { it.copy(selectedMandalaCell = null) }
         refreshSilently()
     }
 
@@ -136,10 +132,10 @@ class PostDetailViewModel @Inject constructor(
             val updatedSmallGoals = post.smallGoals.map { plan ->
                 if (plan.id == planId) plan.copy(todos = plan.todos + newTodo) else plan
             }
-            val updatedDrillDown = state.drillDownPlan?.let { drill ->
-                if (drill.id == planId) drill.copy(todos = drill.todos + newTodo) else drill
+            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+                if (cell.id == planId) cell.copy(todos = cell.todos + newTodo) else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), drillDownPlan = updatedDrillDown)
+            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
         }
     }
 
@@ -153,14 +149,14 @@ class PostDetailViewModel @Inject constructor(
                     })
                 } else plan
             }
-            val updatedDrillDown = state.drillDownPlan?.let { drill ->
-                if (drill.id == planId) {
-                    drill.copy(todos = drill.todos.map { g ->
+            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+                if (cell.id == planId) {
+                    cell.copy(todos = cell.todos.map { g ->
                         if (g.id == goalId) g.copy(content = content, color = color, isComplete = isComplete) else g
                     })
-                } else drill
+                } else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), drillDownPlan = updatedDrillDown)
+            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
         }
     }
 
@@ -230,17 +226,15 @@ class PostDetailViewModel @Inject constructor(
         val post = state.postDetail ?: return
         val previous = post.smallGoals.firstOrNull { it.id == smallGoalId } ?: return
 
-        // 낙관적 업데이트
+        // 낙관적 업데이트 (postDetail + selectedMandalaCell 동시 반영)
         _uiState.update { s ->
             val p = s.postDetail ?: return@update s
+            val updatedPlan = { plan: SmallGoal ->
+                if (plan.id == smallGoalId) plan.copy(content = content, color = color, isComplete = isComplete) else plan
+            }
             s.copy(
-                postDetail = p.copy(
-                    smallGoals = p.smallGoals.map { plan ->
-                        if (plan.id == smallGoalId) {
-                            plan.copy(content = content, color = color, isComplete = isComplete)
-                        } else plan
-                    }
-                )
+                postDetail = p.copy(smallGoals = p.smallGoals.map(updatedPlan)),
+                selectedMandalaCell = s.selectedMandalaCell?.let(updatedPlan),
             )
         }
 
@@ -256,17 +250,16 @@ class PostDetailViewModel @Inject constructor(
                 .onSuccess { serverPlan ->
                     _uiState.update { s ->
                         val p = s.postDetail ?: return@update s
+                        val reconciled = { plan: SmallGoal ->
+                            if (plan.id == smallGoalId) serverPlan.copy(todos = plan.todos) else plan
+                        }
                         s.copy(
-                            postDetail = p.copy(
-                                smallGoals = p.smallGoals.map { plan ->
-                                    if (plan.id == smallGoalId) {
-                                        // 서버 값 우선, todos는 로컬 유지 (서버가 todos를 빼고 줄 수도 있어서 보존)
-                                        serverPlan.copy(todos = plan.todos)
-                                    } else plan
-                                }
-                            )
+                            postDetail = p.copy(smallGoals = p.smallGoals.map(reconciled)),
+                            selectedMandalaCell = s.selectedMandalaCell?.let(reconciled),
                         )
                     }
+                    _events.trySend(PostDetailEvent.PlanUpdated)
+                    refreshSilently()
                 }
                 .onFailure { throwable ->
                     // 롤백
@@ -277,12 +270,11 @@ class PostDetailViewModel @Inject constructor(
                                 smallGoals = p.smallGoals.map { plan ->
                                     if (plan.id == smallGoalId) previous else plan
                                 }
-                            )
+                            ),
+                            selectedMandalaCell = if (s.selectedMandalaCell?.id == smallGoalId) previous else s.selectedMandalaCell,
                         )
                     }
-                    _events.trySend(
-                        PostDetailEvent.Error(throwable.message ?: "셀 수정에 실패했습니다.")
-                    )
+                    _events.trySend(PostDetailEvent.Error(throwable.message ?: "셀 수정에 실패했습니다."))
                 }
         }
     }
@@ -308,6 +300,11 @@ class PostDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             deleteSmallGoalUseCase(postId = post.id, smallGoalId = smallGoalId)
+                .onSuccess {
+                    // 모달 닫기 + 재조회
+                    _uiState.update { it.copy(selectedMandalaCell = null) }
+                    refreshSilently()
+                }
                 .onFailure { throwable ->
                     // 롤백: 이전 sortOrder 그대로 복원
                     _uiState.update { s ->
@@ -315,9 +312,7 @@ class PostDetailViewModel @Inject constructor(
                         val restored = (p.smallGoals + previous).sortedBy { it.sortOrder }
                         s.copy(postDetail = p.copy(smallGoals = restored))
                     }
-                    _events.trySend(
-                        PostDetailEvent.Error(throwable.message ?: "셀 삭제에 실패했습니다.")
-                    )
+                    _events.trySend(PostDetailEvent.Error(throwable.message ?: "셀 삭제에 실패했습니다."))
                 }
         }
     }
@@ -419,10 +414,10 @@ class PostDetailViewModel @Inject constructor(
             val updatedSmallGoals = post.smallGoals.map { plan ->
                 if (plan.id == planId) plan.copy(todos = plan.todos.filter { it.id != goalId }) else plan
             }
-            val updatedDrillDown = state.drillDownPlan?.let { drill ->
-                if (drill.id == planId) drill.copy(todos = drill.todos.filter { it.id != goalId }) else drill
+            val updatedSelected = state.selectedMandalaCell?.let { cell ->
+                if (cell.id == planId) cell.copy(todos = cell.todos.filter { it.id != goalId }) else cell
             }
-            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), drillDownPlan = updatedDrillDown)
+            state.copy(postDetail = post.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
         }
     }
 }
