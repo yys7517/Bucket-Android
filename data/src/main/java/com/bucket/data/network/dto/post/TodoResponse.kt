@@ -1,5 +1,6 @@
 package com.bucket.data.network.dto.post
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -8,5 +9,5 @@ data class TodoResponse(
     val sortOrder: Int,
     val content: String,
     val color: String,
-    val isComplete: Boolean = false,
+    @SerialName("isCompleted") val isComplete: Boolean = false,
 )
