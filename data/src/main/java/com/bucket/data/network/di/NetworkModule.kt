@@ -16,6 +16,7 @@ import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
+import io.ktor.client.statement.bodyAsText
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
@@ -24,6 +25,7 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.encodedPath
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -41,6 +43,8 @@ internal object NetworkModule {
 
     private fun createKtorClient(): HttpClient =
         HttpClient(OkHttp) {
+            expectSuccess = true
+
             install(ContentNegotiation) {
                 json(networkJson)
             }
@@ -50,7 +54,7 @@ internal object NetworkModule {
                         Timber.tag("DEFAULT_NETWORK").i(message)
                     }
                 }
-                level = LogLevel.BODY
+                level = LogLevel.ALL
             }
         }
 
@@ -67,6 +71,8 @@ internal object NetworkModule {
             }
             install(Auth) {
                 bearer {
+                    cacheTokens = false
+
                     loadTokens {
                         val accessToken = authLocalDataSource.accessToken.first()
                         val refreshToken = authLocalDataSource.refreshToken.first()
@@ -90,10 +96,18 @@ internal object NetworkModule {
                         }
 
                         runCatching {
-                            val refreshResponse = client.post("auth/refresh") {
+                            val response = client.post("auth/refresh") {
                                 markAsRefreshTokenRequest()
                                 bearerAuth(refreshToken)
-                            }.body<BaseResponse<RefreshTokenResponse>>()
+                            }
+
+                            if (!response.status.isSuccess()) {
+                                val errorBody = response.bodyAsText()
+                                Timber.e("Token refresh failed with status=%s body=%s", response.status, errorBody)
+                                throw IllegalStateException(errorBody)
+                            }
+
+                            val refreshResponse = response.body<BaseResponse<RefreshTokenResponse>>()
 
                             authLocalDataSource.saveAccessToken(refreshResponse.data.accessToken)
 
