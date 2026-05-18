@@ -37,7 +37,6 @@ import com.example.domain.model.post.PostDetail
 internal fun PostHeaderCard(
     post: PostDetail,
     accentColor: Color,
-    completedCount: Int,
     progress: Float,
     likeCount: Int,
     isMine: Boolean,
@@ -45,6 +44,8 @@ internal fun PostHeaderCard(
     onLikeClick: () -> Unit,
     onEditClick: () -> Unit,
 ) {
+    val progressPercent = (progress.coerceIn(0f, 1f) * 100).toInt()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -89,7 +90,7 @@ internal fun PostHeaderCard(
         Spacer(Modifier.height(20.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             InfoPill(label = "시작일", value = post.startDate.toKoreanDateText(), modifier = Modifier.weight(1f))
-            InfoPill(label = "달성률", value = "$completedCount/${post.smallGoals.size}", modifier = Modifier.weight(1f))
+            InfoPill(label = "달성률", value = "$progressPercent%", modifier = Modifier.weight(1f))
         }
         Spacer(Modifier.height(18.dp))
         ProgressBar(progress = progress)

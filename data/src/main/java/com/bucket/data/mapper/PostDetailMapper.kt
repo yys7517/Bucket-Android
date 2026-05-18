@@ -28,7 +28,7 @@ fun SmallGoalResponse.asSmallGoal(): SmallGoal = SmallGoal(
     id = this.id ?: 0L,
     sortOrder = this.sortOrder,
     content = this.content,
-    isComplete = this.isComplete,
+    isComplete = this.isCompleted ?: this.isComplete ?: false,
     color = this.color,
     todos = this.todos.map { it.asTodo() },
 )
@@ -37,7 +37,7 @@ fun TodoResponse.asTodo(): Todo = Todo(
     id = this.id,
     content = this.content,
     color = this.color,
-    isComplete = this.isComplete,
+    isComplete = this.isCompleted ?: this.isComplete ?: false,
     position = this.sortOrder,
 )
 

@@ -138,7 +138,6 @@ fun PostDetailScreen(
                         PostHeaderCard(
                             post = post,
                             accentColor = accentColor,
-                            completedCount = completedCount,
                             progress = progress,
                             likeCount = uiState.likeCount,
                             isMine = post.isMine,

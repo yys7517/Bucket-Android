@@ -119,10 +119,12 @@ class PostDetailViewModel @Inject constructor(
 
     /** 셀 탭 → 모달 열기. 같은 셀 재탭 시 해제. */
     fun selectMandalaCell(plan: SmallGoal) {
+        val isOpening = _uiState.value.selectedMandalaCell?.id != plan.id
         _uiState.update { state ->
             val next = if (state.selectedMandalaCell?.id == plan.id) null else plan
             state.copy(selectedMandalaCell = next)
         }
+        if (isOpening) refreshSilently()
     }
 
     /** 모달 닫기 → 선택 해제 + 백그라운드 재조회 */
@@ -168,6 +170,7 @@ class PostDetailViewModel @Inject constructor(
                         }
                         s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
                     }
+                    refreshSilently()
                 }
                 .onFailure { throwable ->
                     _uiState.update { s ->
@@ -231,6 +234,7 @@ class PostDetailViewModel @Inject constructor(
                         }
                         s.copy(postDetail = p.copy(smallGoals = updatedSmallGoals), selectedMandalaCell = updatedSelected)
                     }
+                    refreshSilently()
                 }
                 .onFailure { throwable ->
                     _uiState.update { s ->
@@ -515,6 +519,9 @@ class PostDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             deleteTodoUseCase(postId = post.id, smallGoalId = planId, todoId = goalId)
+                .onSuccess {
+                    refreshSilently()
+                }
                 .onFailure { throwable ->
                     _uiState.update { s ->
                         val p = s.postDetail ?: return@update s

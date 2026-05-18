@@ -183,11 +183,12 @@ internal fun PlanBottomSheet(
                             .weight(1f)
                             .height(54.dp)
                             .clip(RoundedCornerShape(50.dp))
-                            .background(Color(0xFFE4E2EB))
+                            .background(Color(0xFFFFEEF1))
+                            .border(1.dp, Color(0xFFE04D5F).copy(alpha = 0.22f), RoundedCornerShape(50.dp))
                             .clickable { showDeleteConfirm = true },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("삭제", color = Color(0xFF6E687D), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("삭제", color = Color(0xFFE04D5F), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                     }
                 }
                 Box(

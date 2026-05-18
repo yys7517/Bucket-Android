@@ -9,5 +9,6 @@ data class TodoResponse(
     val sortOrder: Int,
     val content: String,
     val color: String,
-    @SerialName("isCompleted") val isComplete: Boolean = false,
+    @SerialName("isComplete") val isComplete: Boolean? = null,
+    @SerialName("isCompleted") val isCompleted: Boolean? = null,
 )

@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,6 +78,10 @@ internal fun SmallGoalBottomSheet(
     val canSave = name.isNotBlank()
     val maxLength = 20
     val planAccentColor = planColor.toComposeColor()
+
+    LaunchedEffect(existingGoal?.id, existingGoal?.isComplete) {
+        existingGoal?.let { isComplete = it.isComplete }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -217,7 +222,7 @@ internal fun SmallGoalBottomSheet(
 
             Spacer(Modifier.height(4.dp))
 
-            // ── 하단 버튼: [삭제] [입력]
+            // ── 하단 버튼: [삭제] [완료]
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -228,11 +233,12 @@ internal fun SmallGoalBottomSheet(
                             .weight(1f)
                             .height(54.dp)
                             .clip(RoundedCornerShape(50.dp))
-                            .background(Color(0xFFE4E2EB))
+                            .background(Color(0xFFFFEEF1))
+                            .border(1.dp, Color(0xFFE04D5F).copy(alpha = 0.22f), RoundedCornerShape(50.dp))
                             .clickable { showDeleteConfirm = true },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("삭제", color = Color(0xFF6E687D), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("삭제", color = Color(0xFFE04D5F), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                     }
                 }
                 Box(
@@ -244,7 +250,7 @@ internal fun SmallGoalBottomSheet(
                         .clickable(enabled = canSave) { onSave(name.trim(), selectedColor, isComplete) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("입력", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("완료", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
             Spacer(Modifier.height(10.dp))

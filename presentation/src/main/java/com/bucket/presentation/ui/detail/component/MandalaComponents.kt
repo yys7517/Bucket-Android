@@ -201,10 +201,10 @@ private fun MandalaCenter(title: String, label: String, accentColor: Color, modi
                     .background(Color.White.copy(alpha = 0.28f))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
-                Text(text = label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                Text(text = label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
             }
             Text(
-                text = title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                text = title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis
             )
         }
@@ -234,17 +234,15 @@ private fun MandalaPlanCell(
             .border(borderWidth, borderColor, RoundedCornerShape(14.dp))
             .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.align(Alignment.TopStart),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(cellColor))
-        }
+        MandalaCellStatusBadge(
+            isComplete = plan.isComplete,
+            color = cellColor,
+            modifier = Modifier.align(Alignment.TopStart)
+        )
         Text(
             text = plan.content,
             color = Ink,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 3,
@@ -252,6 +250,34 @@ private fun MandalaPlanCell(
             textDecoration = if (plan.isComplete) TextDecoration.LineThrough else TextDecoration.None,
             modifier = Modifier.align(Alignment.Center).fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun MandalaCellStatusBadge(
+    isComplete: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        if (isComplete) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(color),
+                contentAlignment = Alignment.Center
+            ) {
+                CheckIcon(modifier = Modifier.size(10.dp), color = Color.White)
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+        }
     }
 }
 
@@ -283,11 +309,14 @@ internal fun MandalaModal(
     onDeleteTodo: (goalId: Long) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var editTarget by remember { mutableStateOf<Todo?>(null) }
+    var editTargetId by remember(plan.id) { mutableStateOf<Long?>(null) }
     var showTodoSheet by remember { mutableStateOf(false) }
     var pendingPosition by remember { mutableStateOf(0) }
     var showEditPlanSheet by remember { mutableStateOf(false) }
     var showDeletePlanConfirm by remember { mutableStateOf(false) }
+    val editTarget = editTargetId?.let { id ->
+        plan.todos.firstOrNull { it.id == id }
+    }
 
     val todosByPosition = plan.todos
         .sortedBy { it.position }
@@ -435,14 +464,14 @@ internal fun MandalaModal(
                                 goal != null -> MandalaSmallGoalCell(
                                     goal = goal,
                                     onClick = {
-                                        if (isMine) { editTarget = goal; showTodoSheet = true }
+                                        if (isMine) { editTargetId = goal.id; showTodoSheet = true }
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
                                 else -> {
                                     val position = mandalaGridPosition(idx) ?: 1
                                     MandalaEmptySmallGoalCell(
-                                        onClick = { if (isMine) { pendingPosition = position; editTarget = null; showTodoSheet = true } },
+                                        onClick = { if (isMine) { pendingPosition = position; editTargetId = null; showTodoSheet = true } },
                                         isMine = isMine,
                                         modifier = Modifier.weight(1f)
                                     )
@@ -479,20 +508,20 @@ internal fun MandalaModal(
             planName = plan.content,
             planColor = plan.color,
             usedColors = if (editTarget != null) {
-                usedTodoColors - editTarget!!.color
+                usedTodoColors - editTarget.color
             } else {
                 usedTodoColors
             },
-            onDismiss = { showTodoSheet = false; editTarget = null },
+            onDismiss = { showTodoSheet = false; editTargetId = null },
             onSave = { content, color, isComplete ->
                 val target = editTarget
                 if (target != null) onUpdateTodo(target.id, content, color, isComplete)
                 else onAddTodo(content, color, isComplete, pendingPosition)
-                showTodoSheet = false; editTarget = null
+                showTodoSheet = false; editTargetId = null
             },
             onDelete = {
                 editTarget?.let { onDeleteTodo(it.id) }
-                showTodoSheet = false; editTarget = null
+                showTodoSheet = false; editTargetId = null
             }
         )
     }
@@ -536,6 +565,7 @@ private fun MandalaSmallGoalCell(goal: Todo, onClick: () -> Unit, modifier: Modi
     val cellColor = goal.color.toComposeColor()
     Box(
         modifier = modifier
+            .alpha(if (goal.isComplete) 0.45f else 1f)
             .aspectRatio(1f)
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
@@ -543,36 +573,21 @@ private fun MandalaSmallGoalCell(goal: Todo, onClick: () -> Unit, modifier: Modi
             .border(1.5.dp, cellColor.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
             .padding(8.dp)
     ) {
-        // 좌상단 뱃지: 완료면 체크 배지, 미완료면 색상 점
-        Box(modifier = Modifier.align(Alignment.TopStart)) {
-            if (goal.isComplete) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(cellColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CheckIcon(modifier = Modifier.size(10.dp), color = Color.White)
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(cellColor)
-                )
-            }
-        }
+        MandalaCellStatusBadge(
+            isComplete = goal.isComplete,
+            color = cellColor,
+            modifier = Modifier.align(Alignment.TopStart)
+        )
         // 텍스트: 셀 정중앙
         Text(
             text = goal.content,
             color = Ink,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
+            textDecoration = if (goal.isComplete) TextDecoration.LineThrough else TextDecoration.None,
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth()
