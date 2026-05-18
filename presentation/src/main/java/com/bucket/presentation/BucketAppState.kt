@@ -29,6 +29,14 @@ data class BucketAppState(
         navController.navigate(BucketRoute.BucketDetail.createRoute(bucketId, author))
     }
 
+    fun navigateToOtherProfile(userId: Long) {
+        navController.navigate(BucketRoute.OtherProfile.createRoute(userId))
+    }
+
+    fun navigateToProfileEdit() {
+        navController.navigate(BucketRoute.ProfileEdit.route)
+    }
+
     fun navigateToHomeAfterLogin() {
         navController.navigate(BucketRoute.Home.route) {
             popUpTo(navController.graph.id) {

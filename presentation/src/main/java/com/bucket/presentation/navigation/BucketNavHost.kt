@@ -1,42 +1,24 @@
 package com.bucket.presentation.navigation
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.bucket.presentation.BucketAppState
 import com.example.domain.model.user.Author
-import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.detail.PostDetailRoute
 import com.bucket.presentation.ui.home.HomeRoute
 import com.bucket.presentation.ui.login.LoginRoute
+import com.bucket.presentation.ui.profile.OtherProfileRoute
+import com.bucket.presentation.ui.profile.ProfileEditRoute
+import com.bucket.presentation.ui.profile.ProfileRoute
 import com.bucket.presentation.ui.splash.SplashRoute
-
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = title,
-            color = Ink,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
 
 @Composable
 fun BucketNavHost(
@@ -86,7 +68,22 @@ fun BucketNavHost(
             )
         }
         composable(BucketRoute.Profile.route) {
-            PlaceholderScreen(title = "마이")
+            ProfileRoute(onEditClick = appState::navigateToProfileEdit)
+        }
+        composable(BucketRoute.ProfileEdit.route) {
+            ProfileEditRoute(onBackClick = appState::navigateBack)
+        }
+        composable(
+            route = BucketRoute.OtherProfile.route,
+            arguments = listOf(
+                navArgument(BucketRoute.OtherProfile.ARG_USER_ID) { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getLong(BucketRoute.OtherProfile.ARG_USER_ID) ?: 0L
+            OtherProfileRoute(
+                userId = userId,
+                onBackClick = appState::navigateBack
+            )
         }
     }
 }

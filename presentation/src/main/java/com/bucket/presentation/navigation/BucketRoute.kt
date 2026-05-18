@@ -23,6 +23,11 @@ sealed class BucketRoute(
         }
     }
     data object Profile : BucketRoute("profile", "마이")
+    data object ProfileEdit : BucketRoute("profile/edit", "프로필 편집")
+    data object OtherProfile : BucketRoute("profile/{userId}", "프로필") {
+        const val ARG_USER_ID = "userId"
+        fun createRoute(userId: Long) = "profile/$userId"
+    }
 }
 
 val bottomBarRoutes = listOf(
