@@ -26,7 +26,6 @@ sealed class BucketRoute(
 }
 
 val bottomBarRoutes = listOf(
-    BucketRoute.Category,
     BucketRoute.Home,
     BucketRoute.Profile
 )

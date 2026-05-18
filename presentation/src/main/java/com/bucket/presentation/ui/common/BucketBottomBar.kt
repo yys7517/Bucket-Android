@@ -9,7 +9,6 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -62,23 +61,10 @@ private fun BottomBarIcon(
 ) {
     Box(Modifier.size(26.dp)) {
         when (route) {
-            BucketRoute.Category -> GridIcon(color = color)
             BucketRoute.Home -> HomeIcon(color = color)
             BucketRoute.Profile -> UserIcon(color = color)
             else -> Unit
         }
-    }
-}
-
-@Composable
-private fun GridIcon(color: Color) {
-    Canvas(Modifier.size(26.dp)) {
-        val stroke = Stroke(width = 2.3.dp.toPx())
-        val cell = size.width * 0.28f
-        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.12f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.12f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.12f, size.height * 0.60f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
-        drawRoundRect(color, topLeft = Offset(size.width * 0.60f, size.height * 0.60f), size = Size(cell, cell), cornerRadius = CornerRadius(4.dp.toPx()), style = stroke)
     }
 }
 
