@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.domain.model.home.PopularBucket
 import com.example.domain.usecase.home.GetPopularBucketsUseCase
+import com.example.domain.usecase.post.ToggleBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -25,12 +28,19 @@ data class HomeUiState(
                 else popularBuckets.filter { it.category == selectedCategory }
 }
 
+sealed interface HomeEvent {
+    data class BookmarkUpdated(val isBookmarked: Boolean) : HomeEvent
+}
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getPopularBucketsUseCase: GetPopularBucketsUseCase,
+    private val toggleBookmarkUseCase: ToggleBookmarkUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _events = Channel<HomeEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
     private var loadHomeJob: Job? = null
 
     init {
@@ -76,10 +86,46 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
+    fun toggleBookmark(postId: Long) {
+        val currentBuckets = _uiState.value.popularBuckets
+        val target = currentBuckets.firstOrNull { it.id == postId } ?: return
+        val optimisticBuckets = currentBuckets.updateBookmark(
+            postId = postId,
+            isBookmarked = !target.isBookmarked
+        )
+
+        _uiState.update { it.copy(popularBuckets = optimisticBuckets) }
+
+        viewModelScope.launch {
+            toggleBookmarkUseCase(postId)
+                .onSuccess { result ->
+                    _uiState.update { state ->
+                        state.copy(
+                            popularBuckets = state.popularBuckets.updateBookmark(
+                                postId = postId,
+                                isBookmarked = result.isBookmarked
+                            )
+                        )
+                    }
+                    _events.trySend(HomeEvent.BookmarkUpdated(result.isBookmarked))
+                }
+                .onFailure {
+                    _uiState.update { it.copy(popularBuckets = currentBuckets) }
+                }
+        }
+    }
+
     private fun List<PopularBucket>.reuseUnchangedItems(next: List<PopularBucket>): List<PopularBucket> {
         val previousById = associateBy { it.id }
         return next.map { bucket ->
             previousById[bucket.id]?.takeIf { it == bucket } ?: bucket
         }
+    }
+
+    private fun List<PopularBucket>.updateBookmark(
+        postId: Long,
+        isBookmarked: Boolean,
+    ): List<PopularBucket> = map { bucket ->
+        if (bucket.id == postId) bucket.copy(isBookmarked = isBookmarked) else bucket
     }
 }

@@ -41,7 +41,9 @@ internal fun PostHeaderCard(
     likeCount: Int,
     isMine: Boolean,
     isLiked: Boolean,
+    isBookmarked: Boolean,
     onLikeClick: () -> Unit,
+    onBookmarkClick: () -> Unit,
     onEditClick: () -> Unit,
 ) {
     val progressPercent = (progress.coerceIn(0f, 1f) * 100).toInt()
@@ -75,6 +77,7 @@ internal fun PostHeaderCard(
                     }
                 }
                 LikeButton(isLiked = isLiked, likeCount = likeCount, onLikeClick = onLikeClick)
+                BookmarkButton(isBookmarked = isBookmarked, onBookmarkClick = onBookmarkClick)
             }
         }
         Spacer(Modifier.height(18.dp))

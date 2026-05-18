@@ -1,5 +1,6 @@
 package com.bucket.presentation.ui.home
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
@@ -44,6 +46,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -71,6 +74,7 @@ fun HomeRoute(
     onBucketClick: (Long, Author) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -80,11 +84,27 @@ fun HomeRoute(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HomeEvent.BookmarkUpdated -> {
+                    val message = if (event.isBookmarked) {
+                        "북마크에 추가되었습니다."
+                    } else {
+                        "북마크에서 삭제합니다."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     HomeScreen(
         uiState = uiState,
         onBucketClick = onBucketClick,
-        onCategorySelected = viewModel::selectCategory
+        onCategorySelected = viewModel::selectCategory,
+        onBookmarkClick = viewModel::toggleBookmark,
     )
 }
 
@@ -93,6 +113,7 @@ fun HomeScreen(
     uiState: HomeUiState,
     onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     onCategorySelected: (String) -> Unit = {},
+    onBookmarkClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hasBuckets = uiState.popularBuckets.isNotEmpty()
@@ -148,6 +169,7 @@ fun HomeScreen(
                     FeedCard(
                         bucket = bucket,
                         onClick = { onBucketClick(bucket.id, bucket.author) },
+                        onBookmarkClick = { onBookmarkClick(bucket.id) },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     Spacer(Modifier.height(14.dp))
@@ -190,8 +212,8 @@ private fun FeedTopBar(modifier: Modifier = Modifier) {
                 fontWeight = FontWeight.ExtraBold
             )
         }
-        // 벨 아이콘
-        Box(
+        // 알림 아이콘
+        /*Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
@@ -200,7 +222,7 @@ private fun FeedTopBar(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             BellIcon(modifier = Modifier.size(20.dp), color = Color(0xFF6E687D))
-        }
+        }*/
     }
 }
 
@@ -251,6 +273,7 @@ private fun CategoryChipRow(
 private fun FeedCard(
     bucket: PopularBucket,
     onClick: () -> Unit,
+    onBookmarkClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
@@ -427,43 +450,35 @@ private fun FeedCard(
                     )
                 }
                 // 댓글 아이콘
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Canvas(Modifier.size(18.dp)) {
-                        val stroke = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
-                        drawRoundRect(
-                            color = Color(0xFF9A94A8),
-                            topLeft = Offset(size.width * 0.10f, size.height * 0.14f),
-                            size = Size(size.width * 0.80f, size.height * 0.60f),
-                            cornerRadius = CornerRadius(4.dp.toPx()),
-                            style = stroke
-                        )
-                        drawLine(
-                            color = Color(0xFF9A94A8),
-                            start = Offset(size.width * 0.28f, size.height * 0.74f),
-                            end = Offset(size.width * 0.22f, size.height * 0.90f),
-                            strokeWidth = 1.8.dp.toPx(),
-                            cap = StrokeCap.Round
-                        )
-                    }
-                    Text(text = "댓글", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
+//                Row(
+//                    verticalAlignment = Alignment.CenterVertically,
+//                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+//                ) {
+//                    Canvas(Modifier.size(18.dp)) {
+//                        val stroke = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+//                        drawRoundRect(
+//                            color = Color(0xFF9A94A8),
+//                            topLeft = Offset(size.width * 0.10f, size.height * 0.14f),
+//                            size = Size(size.width * 0.80f, size.height * 0.60f),
+//                            cornerRadius = CornerRadius(4.dp.toPx()),
+//                            style = stroke
+//                        )
+//                        drawLine(
+//                            color = Color(0xFF9A94A8),
+//                            start = Offset(size.width * 0.28f, size.height * 0.74f),
+//                            end = Offset(size.width * 0.22f, size.height * 0.90f),
+//                            strokeWidth = 1.8.dp.toPx(),
+//                            cap = StrokeCap.Round
+//                        )
+//                    }
+//                    Text(text = "댓글", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+//                }
             }
             // 북마크
-            Canvas(Modifier.size(20.dp)) {
-                val stroke = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(size.width * 0.22f, size.height * 0.10f)
-                    lineTo(size.width * 0.78f, size.height * 0.10f)
-                    lineTo(size.width * 0.78f, size.height * 0.88f)
-                    lineTo(size.width * 0.50f, size.height * 0.68f)
-                    lineTo(size.width * 0.22f, size.height * 0.88f)
-                    close()
-                }
-                drawPath(path, Color(0xFF9A94A8), style = stroke)
-            }
+            BookmarkIcon(
+                isBookmarked = bucket.isBookmarked,
+                onClick = onBookmarkClick,
+            )
         }
     }
 }
@@ -651,6 +666,39 @@ private fun BellIcon(modifier: Modifier = Modifier, color: Color) {
             size = Size(size.width * 0.24f, size.height * 0.22f),
             style = stroke
         )
+    }
+}
+
+@Composable
+private fun BookmarkIcon(
+    isBookmarked: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(
+        modifier = modifier
+            .size(24.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(2.dp)
+    ) {
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(size.width * 0.22f, size.height * 0.10f)
+            lineTo(size.width * 0.78f, size.height * 0.10f)
+            lineTo(size.width * 0.78f, size.height * 0.88f)
+            lineTo(size.width * 0.50f, size.height * 0.68f)
+            lineTo(size.width * 0.22f, size.height * 0.88f)
+            close()
+        }
+        if (isBookmarked) {
+            drawPath(path, Purple)
+        } else {
+            drawPath(
+                path = path,
+                color = Color(0xFF9A94A8),
+                style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
     }
 }
 

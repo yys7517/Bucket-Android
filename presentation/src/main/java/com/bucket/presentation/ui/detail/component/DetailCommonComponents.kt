@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +101,24 @@ internal fun LikeButton(isLiked: Boolean, likeCount: Int, onLikeClick: () -> Uni
 }
 
 @Composable
+internal fun BookmarkButton(isBookmarked: Boolean, onBookmarkClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .clickable { onBookmarkClick() }
+            .background(Color.White)
+            .border(1.dp, SoftLine, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        BookmarkIcon(
+            isBookmarked = isBookmarked,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
 internal fun InfoPill(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
@@ -157,6 +176,33 @@ internal fun CloseIcon(modifier: Modifier = Modifier, color: Color) {
         val stroke = 2.4.dp.toPx()
         drawLine(color, Offset(size.width * 0.22f, size.height * 0.22f), Offset(size.width * 0.78f, size.height * 0.78f), stroke, StrokeCap.Round)
         drawLine(color, Offset(size.width * 0.78f, size.height * 0.22f), Offset(size.width * 0.22f, size.height * 0.78f), stroke, StrokeCap.Round)
+    }
+}
+
+@Composable
+internal fun BookmarkIcon(
+    isBookmarked: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = Purple,
+) {
+    Canvas(modifier) {
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(size.width * 0.24f, size.height * 0.10f)
+            lineTo(size.width * 0.76f, size.height * 0.10f)
+            lineTo(size.width * 0.76f, size.height * 0.88f)
+            lineTo(size.width * 0.50f, size.height * 0.68f)
+            lineTo(size.width * 0.24f, size.height * 0.88f)
+            close()
+        }
+        if (isBookmarked) {
+            drawPath(path = path, color = color)
+        } else {
+            drawPath(
+                path = path,
+                color = Color(0xFF6E687D),
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
     }
 }
 

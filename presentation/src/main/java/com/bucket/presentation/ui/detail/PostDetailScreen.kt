@@ -61,6 +61,14 @@ fun PostDetailRoute(
                 is PostDetailEvent.PlanUpdated -> {
                     Toast.makeText(context, "수정되었습니다", Toast.LENGTH_SHORT).show()
                 }
+                is PostDetailEvent.BookmarkUpdated -> {
+                    val message = if (event.isBookmarked) {
+                        "북마크에 추가되었습니다."
+                    } else {
+                        "북마크에서 삭제합니다."
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
                 is PostDetailEvent.Error -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
@@ -73,6 +81,7 @@ fun PostDetailRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onLikeClick = { viewModel.toggleLike(postId) },
+        onBookmarkClick = { viewModel.toggleBookmark(postId) },
         onSelectMandalaCell = viewModel::selectMandalaCell,
         onDismissMandalaModal = viewModel::dismissMandalaModal,
         onAddPlan = { content, color, isComplete, sortOrder -> viewModel.addPlan(content, color, isComplete, sortOrder) },
@@ -93,6 +102,7 @@ fun PostDetailScreen(
     uiState: PostDetailUiState,
     onBackClick: () -> Unit,
     onLikeClick: () -> Unit = {},
+    onBookmarkClick: () -> Unit = {},
     onSelectMandalaCell: (SmallGoal) -> Unit = {},
     onDismissMandalaModal: () -> Unit = {},
     onAddPlan: (content: String, color: String, isComplete: Boolean, sortOrder: Int) -> Unit = { _, _, _, _ -> },
@@ -142,7 +152,9 @@ fun PostDetailScreen(
                             likeCount = uiState.likeCount,
                             isMine = post.isMine,
                             isLiked = uiState.isLiked,
+                            isBookmarked = uiState.isBookmarked,
                             onLikeClick = onLikeClick,
+                            onBookmarkClick = onBookmarkClick,
                             onEditClick = { showEditSheet = true },
                         )
                     }

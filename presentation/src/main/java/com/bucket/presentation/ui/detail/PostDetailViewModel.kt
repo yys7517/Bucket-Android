@@ -12,6 +12,7 @@ import com.example.domain.usecase.post.DeletePostUseCase
 import com.example.domain.usecase.post.DeleteSmallGoalUseCase
 import com.example.domain.usecase.post.DeleteTodoUseCase
 import com.example.domain.usecase.post.GetPostDetailUseCase
+import com.example.domain.usecase.post.ToggleBookmarkUseCase
 import com.example.domain.usecase.post.ToggleLikeUseCase
 import com.example.domain.usecase.post.UpdatePostUseCase
 import com.example.domain.usecase.post.UpdateSmallGoalUseCase
@@ -32,6 +33,7 @@ data class PostDetailUiState(
     val errorMessage: String? = null,
     val isLiked: Boolean = false,
     val likeCount: Int = 0,
+    val isBookmarked: Boolean = false,
     /** 탭된 외곽 셀 — non-null이면 만다라트 모달 표시 */
     val selectedMandalaCell: SmallGoal? = null,
     /** 편집/삭제 진행 중 표시 (바텀시트 버튼 비활성화 등에 사용) */
@@ -43,6 +45,7 @@ sealed interface PostDetailEvent {
     data object PostUpdated : PostDetailEvent
     data object PostDeleted : PostDetailEvent
     data object PlanUpdated : PostDetailEvent
+    data class BookmarkUpdated(val isBookmarked: Boolean) : PostDetailEvent
     data class Error(val message: String) : PostDetailEvent
 }
 
@@ -50,6 +53,7 @@ sealed interface PostDetailEvent {
 class PostDetailViewModel @Inject constructor(
     private val getPostDetailUseCase: GetPostDetailUseCase,
     private val toggleLikeUseCase: ToggleLikeUseCase,
+    private val toggleBookmarkUseCase: ToggleBookmarkUseCase,
     private val updatePostUseCase: UpdatePostUseCase,
     private val deletePostUseCase: DeletePostUseCase,
     private val createSmallGoalUseCase: CreateSmallGoalUseCase,
@@ -85,6 +89,7 @@ class PostDetailViewModel @Inject constructor(
                             postDetail = post,
                             isLiked = post.isLiked,
                             likeCount = post.likeCount,
+                            isBookmarked = post.isBookmarked,
                         )
                     }
                 }
@@ -110,6 +115,7 @@ class PostDetailViewModel @Inject constructor(
                             postDetail = post,
                             isLiked = post.isLiked,
                             likeCount = post.likeCount,
+                            isBookmarked = post.isBookmarked,
                             selectedMandalaCell = freshSelected,
                         )
                     }
@@ -418,6 +424,37 @@ class PostDetailViewModel @Inject constructor(
             toggleLikeUseCase(postId)
                 .onSuccess { result -> _uiState.update { it.copy(isLiked = result.isLiked, likeCount = result.likeCount) } }
                 .onFailure { _uiState.update { it.copy(isLiked = current.isLiked, likeCount = current.likeCount) } }
+        }
+    }
+
+    fun toggleBookmark(postId: Long) {
+        val current = _uiState.value
+        val optimisticIsBookmarked = !current.isBookmarked
+        _uiState.update {
+            it.copy(
+                isBookmarked = optimisticIsBookmarked,
+                postDetail = it.postDetail?.copy(isBookmarked = optimisticIsBookmarked),
+            )
+        }
+        viewModelScope.launch {
+            toggleBookmarkUseCase(postId)
+                .onSuccess { result ->
+                    _uiState.update {
+                        it.copy(
+                            isBookmarked = result.isBookmarked,
+                            postDetail = it.postDetail?.copy(isBookmarked = result.isBookmarked),
+                        )
+                    }
+                    _events.trySend(PostDetailEvent.BookmarkUpdated(result.isBookmarked))
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(
+                            isBookmarked = current.isBookmarked,
+                            postDetail = current.postDetail,
+                        )
+                    }
+                }
         }
     }
 
