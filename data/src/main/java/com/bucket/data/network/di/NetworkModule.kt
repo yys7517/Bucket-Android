@@ -14,7 +14,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
-import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -23,6 +23,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
@@ -41,9 +42,9 @@ internal object NetworkModule {
         prettyPrint = true
     }
 
-    private fun createKtorClient(): HttpClient =
+    private fun createKtorClient(expectSuccess: Boolean = true): HttpClient =
         HttpClient(OkHttp) {
-            expectSuccess = true
+            this.expectSuccess = expectSuccess
 
             install(ContentNegotiation) {
                 json(networkJson)
@@ -63,8 +64,15 @@ internal object NetworkModule {
     @DefaultNetwork
     fun provideDefaultHttpClient(
         authLocalDataSource: AuthLocalDataSource
-    ): HttpClient =
-        createKtorClient().config {
+    ): HttpClient {
+        val refreshClient = createKtorClient(expectSuccess = false).config {
+            defaultRequest {
+                url(BuildConfig.BASE_URL)
+                contentType(ContentType.Application.Json)
+            }
+        }
+
+        return createKtorClient().config {
             defaultRequest {
                 url(BuildConfig.BASE_URL)
                 contentType(ContentType.Application.Json)
@@ -96,9 +104,8 @@ internal object NetworkModule {
                         }
 
                         runCatching {
-                            val response = client.post("auth/refresh") {
-                                markAsRefreshTokenRequest()
-                                bearerAuth(refreshToken)
+                            val response = refreshClient.post("auth/refresh") {
+                                header(HttpHeaders.Authorization, "Bearer $refreshToken")
                             }
 
                             if (!response.status.isSuccess()) {
@@ -129,4 +136,5 @@ internal object NetworkModule {
                 }
             }
         }
+    }
 }
