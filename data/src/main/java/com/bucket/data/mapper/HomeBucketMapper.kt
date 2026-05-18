@@ -3,6 +3,7 @@ package com.bucket.data.mapper
 import com.bucket.data.network.dto.home.BucketCardResponse
 import com.example.domain.model.home.PopularBucket
 import com.example.domain.model.home.RecentBucket
+import com.example.domain.model.home.SmallGoalSummary
 import com.example.domain.model.user.Author
 
 fun BucketCardResponse.asPopularBucket(): PopularBucket =
@@ -18,7 +19,13 @@ fun BucketCardResponse.asPopularBucket(): PopularBucket =
         ),
         likeCount = this.likeCount,
         isLiked = this.isLiked,
-        progress = this.smallGoalSummary.progressRate
+        startDate = this.startDate,
+        completedCount = this.smallGoalSummary.completedCount,
+        totalCount = this.smallGoalSummary.totalCount,
+        progressRate = this.smallGoalSummary.progressRate,
+        smallGoals = this.smallGoals.mapValues { (_, v) ->
+            SmallGoalSummary(content = v.content, color = v.color, isCompleted = v.isCompleted)
+        },
     )
 
 fun BucketCardResponse.asRecentBucket(): RecentBucket =
@@ -33,4 +40,9 @@ fun BucketCardResponse.asRecentBucket(): RecentBucket =
             profileImgUrl = this.userInfo.profileImgUrl
         ),
         startDate = this.startDate,
+        likeCount = this.likeCount,
+        isLiked = this.isLiked,
+        completedCount = this.smallGoalSummary.completedCount,
+        totalCount = this.smallGoalSummary.totalCount,
+        progressRate = this.smallGoalSummary.progressRate,
     )

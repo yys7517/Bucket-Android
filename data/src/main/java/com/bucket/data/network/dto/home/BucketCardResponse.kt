@@ -13,5 +13,6 @@ data class BucketCardResponse(
     val isLiked: Boolean = false,
     val startDate: String,
     val userInfo: UserInfoResponse,
-    val smallGoalSummary: GoalSummaryResponse
+    val smallGoalSummary: GoalSummaryResponse,
+    val smallGoals: Map<Int, SmallGoalSummaryResponse> = emptyMap(),
 )

@@ -10,5 +10,9 @@ data class PopularBucket(
     val author: Author,
     val likeCount: Int,
     val isLiked: Boolean,
-    val progress: Int,
+    val startDate: String,
+    val completedCount: Int,
+    val totalCount: Int,
+    val progressRate: Int,
+    val smallGoals: Map<Int, SmallGoalSummary>,
 )
