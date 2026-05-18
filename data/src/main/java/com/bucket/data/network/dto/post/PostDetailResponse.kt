@@ -14,5 +14,6 @@ data class PostDetailResponse(
     val startDate: String,
     val smallGoals: List<SmallGoalResponse> = emptyList(),
     val isLiked: Boolean,
-    val isMine: Boolean
+    val isMine: Boolean,
+    val isBookmarked: Boolean = false,
 )

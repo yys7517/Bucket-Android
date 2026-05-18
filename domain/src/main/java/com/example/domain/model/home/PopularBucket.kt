@@ -15,4 +15,5 @@ data class PopularBucket(
     val totalCount: Int,
     val progressRate: Int,
     val smallGoals: Map<Int, SmallGoalSummary>,
+    val isBookmarked: Boolean = false,
 )

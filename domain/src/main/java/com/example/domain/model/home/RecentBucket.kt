@@ -14,4 +14,5 @@ data class RecentBucket(
     val completedCount: Int = 0,
     val totalCount: Int = 0,
     val progressRate: Int = 0,
+    val isBookmarked: Boolean = false,
 )

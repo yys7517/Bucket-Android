@@ -11,6 +11,7 @@ data class BucketCardResponse(
     val goal: String = "",
     val likeCount: Int,
     val isLiked: Boolean = false,
+    val isBookmarked: Boolean = false,
     val startDate: String,
     val userInfo: UserInfoResponse,
     val smallGoalSummary: GoalSummaryResponse,

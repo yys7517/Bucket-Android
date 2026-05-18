@@ -26,6 +26,7 @@ fun BucketCardResponse.asPopularBucket(): PopularBucket =
         smallGoals = this.smallGoals.mapValues { (_, v) ->
             SmallGoalSummary(content = v.content, color = v.color, isCompleted = v.isCompleted)
         },
+        isBookmarked = this.isBookmarked,
     )
 
 fun BucketCardResponse.asRecentBucket(): RecentBucket =
@@ -45,4 +46,5 @@ fun BucketCardResponse.asRecentBucket(): RecentBucket =
         completedCount = this.smallGoalSummary.completedCount,
         totalCount = this.smallGoalSummary.totalCount,
         progressRate = this.smallGoalSummary.progressRate,
+        isBookmarked = this.isBookmarked,
     )

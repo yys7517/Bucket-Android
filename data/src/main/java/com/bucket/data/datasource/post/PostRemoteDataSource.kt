@@ -1,6 +1,7 @@
 package com.bucket.data.datasource.post
 
 import com.bucket.data.network.di.DefaultNetwork
+import com.bucket.data.network.dto.post.BookmarkResponse
 import com.bucket.data.network.dto.common.BaseResponse
 import com.bucket.data.network.dto.post.LikeResponse
 import com.bucket.data.network.dto.post.PostDetailResponse
@@ -31,6 +32,9 @@ class PostRemoteDataSource @Inject constructor(
 
     override suspend fun toggleLike(postId: Long): BaseResponse<LikeResponse> =
         client.post("posts/$postId/likes").body()
+
+    override suspend fun toggleBookmark(postId: Long): BaseResponse<BookmarkResponse> =
+        client.post("posts/$postId/toggle-bookmark").body()
 
     override suspend fun updatePost(
         postId: Long,

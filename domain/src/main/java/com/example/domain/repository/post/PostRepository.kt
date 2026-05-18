@@ -2,6 +2,7 @@ package com.example.domain.repository.post
 
 import com.example.domain.model.post.PostDetail
 import com.example.domain.model.post.PostUpdateResult
+import com.example.domain.model.post.BookmarkResult
 import com.example.domain.model.post.LikeResult
 import com.example.domain.model.post.Todo
 import com.example.domain.model.post.SmallGoal
@@ -10,6 +11,7 @@ import com.example.domain.model.user.Author
 interface PostRepository {
     suspend fun fetchPostDetail(postId: Long, author: Author): Result<PostDetail>
     suspend fun toggleLike(postId: Long): Result<LikeResult>
+    suspend fun toggleBookmark(postId: Long): Result<BookmarkResult>
 
     /** PATCH /posts/{postId} — 목표 이름/시작일/메모 수정 */
     suspend fun updatePost(

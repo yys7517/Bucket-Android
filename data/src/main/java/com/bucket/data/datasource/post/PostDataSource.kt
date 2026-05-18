@@ -1,6 +1,7 @@
 package com.bucket.data.datasource.post
 
 import com.bucket.data.network.dto.common.BaseResponse
+import com.bucket.data.network.dto.post.BookmarkResponse
 import com.bucket.data.network.dto.post.LikeResponse
 import com.bucket.data.network.dto.post.PostDetailResponse
 import com.bucket.data.network.dto.post.PostUpdateRequest
@@ -14,6 +15,7 @@ import com.bucket.data.network.dto.post.TodoResponse
 interface PostDataSource {
     suspend fun getPostDetail(postId: Long): BaseResponse<PostDetailResponse>
     suspend fun toggleLike(postId: Long): BaseResponse<LikeResponse>
+    suspend fun toggleBookmark(postId: Long): BaseResponse<BookmarkResponse>
     suspend fun updatePost(
         postId: Long,
         request: PostUpdateRequest,

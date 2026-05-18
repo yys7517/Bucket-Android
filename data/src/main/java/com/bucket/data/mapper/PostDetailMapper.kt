@@ -21,7 +21,8 @@ fun PostDetailResponse.asDomain(author: Author): PostDetail = PostDetail(
     author = author,
     smallGoals = this.smallGoals.map { it.asSmallGoal() },
     isLiked = isLiked,
-    isMine = isMine
+    isMine = isMine,
+    isBookmarked = isBookmarked,
 )
 
 fun SmallGoalResponse.asSmallGoal(): SmallGoal = SmallGoal(

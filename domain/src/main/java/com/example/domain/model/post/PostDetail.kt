@@ -14,4 +14,5 @@ data class PostDetail(
     val smallGoals: List<SmallGoal>,
     val isLiked: Boolean,
     val isMine: Boolean,
+    val isBookmarked: Boolean = false,
 )

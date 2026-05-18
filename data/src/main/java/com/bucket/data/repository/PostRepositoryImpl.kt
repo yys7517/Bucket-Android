@@ -8,6 +8,7 @@ import com.bucket.data.network.dto.post.PostUpdateRequest
 import com.bucket.data.network.dto.post.SmallGoalCreateRequest
 import com.bucket.data.network.dto.post.SmallGoalUpdateRequest
 import com.bucket.data.network.dto.post.TodoRequest
+import com.example.domain.model.post.BookmarkResult
 import com.example.domain.model.post.LikeResult
 import com.example.domain.model.post.PostDetail
 import com.example.domain.model.post.PostUpdateResult
@@ -27,6 +28,11 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun toggleLike(postId: Long): Result<LikeResult> = runCatching {
         val resp = postDataSource.toggleLike(postId).data
         LikeResult(isLiked = resp.isLiked, likeCount = resp.likeCount)
+    }
+
+    override suspend fun toggleBookmark(postId: Long): Result<BookmarkResult> = runCatching {
+        val resp = postDataSource.toggleBookmark(postId).data
+        BookmarkResult(isBookmarked = resp.isBookmarked)
     }
 
     override suspend fun updatePost(
