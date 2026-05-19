@@ -61,6 +61,12 @@ import com.example.domain.model.home.SmallGoalSummary
 import com.example.domain.model.profile.ProfilePostStatus
 import com.example.domain.model.user.Author
 
+data class ProfileEditResult(
+    val username: String,
+    val email: String,
+    val introduction: String,
+)
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 /** 내 프로필 */
@@ -68,9 +74,22 @@ import com.example.domain.model.user.Author
 fun ProfileRoute(
     onEditClick: (username: String, email: String, introduction: String, profileImageUrl: String) -> Unit = { _, _, _, _ -> },
     onBucketClick: (Long, Author) -> Unit = { _, _ -> },
+    profileEditResult: ProfileEditResult? = null,
+    onProfileEditResultConsumed: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     LaunchedEffect(Unit) { viewModel.loadProfile(isMine = true) }
+    LaunchedEffect(profileEditResult) {
+        profileEditResult?.let { result ->
+            viewModel.applyProfileUpdate(
+                username = result.username,
+                email = result.email,
+                introduction = result.introduction,
+            )
+            onProfileEditResultConsumed()
+        }
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     ProfileScreen(
         uiState = uiState,

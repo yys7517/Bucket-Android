@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -17,6 +19,7 @@ import com.bucket.presentation.ui.home.HomeRoute
 import com.bucket.presentation.ui.login.LoginRoute
 import com.bucket.presentation.ui.profile.OtherProfileRoute
 import com.bucket.presentation.ui.profile.ProfileEditRoute
+import com.bucket.presentation.ui.profile.ProfileEditResult
 import com.bucket.presentation.ui.profile.ProfileRoute
 import com.bucket.presentation.ui.splash.SplashRoute
 
@@ -72,10 +75,40 @@ fun BucketNavHost(
                 onAuthorClick = appState::navigateToOtherProfile,
             )
         }
-        composable(BucketRoute.Profile.route) {
+        composable(BucketRoute.Profile.route) { backStackEntry ->
+            val savedStateHandle = backStackEntry.savedStateHandle
+            val updatedUsername by savedStateHandle
+                .getStateFlow<String?>(BucketRoute.ProfileEdit.RESULT_USERNAME, null)
+                .collectAsState()
+            val updatedEmail by savedStateHandle
+                .getStateFlow<String?>(BucketRoute.ProfileEdit.RESULT_EMAIL, null)
+                .collectAsState()
+            val updatedIntroduction by savedStateHandle
+                .getStateFlow<String?>(BucketRoute.ProfileEdit.RESULT_INTRODUCTION, null)
+                .collectAsState()
+            val profileEditResult = if (
+                updatedUsername != null &&
+                updatedEmail != null &&
+                updatedIntroduction != null
+            ) {
+                ProfileEditResult(
+                    username = updatedUsername.orEmpty(),
+                    email = updatedEmail.orEmpty(),
+                    introduction = updatedIntroduction.orEmpty(),
+                )
+            } else {
+                null
+            }
+
             ProfileRoute(
                 onEditClick = appState::navigateToProfileEdit,
                 onBucketClick = appState::navigateToBucketDetail,
+                profileEditResult = profileEditResult,
+                onProfileEditResultConsumed = {
+                    savedStateHandle.remove<String>(BucketRoute.ProfileEdit.RESULT_USERNAME)
+                    savedStateHandle.remove<String>(BucketRoute.ProfileEdit.RESULT_EMAIL)
+                    savedStateHandle.remove<String>(BucketRoute.ProfileEdit.RESULT_INTRODUCTION)
+                },
             )
         }
         composable(
@@ -105,7 +138,8 @@ fun BucketNavHost(
                 email = args?.getString(BucketRoute.ProfileEdit.ARG_EMAIL).orEmpty(),
                 introduction = args?.getString(BucketRoute.ProfileEdit.ARG_INTRODUCTION).orEmpty(),
                 profileImageUrl = args?.getString(BucketRoute.ProfileEdit.ARG_PROFILE_IMAGE).orEmpty(),
-                onBackClick = appState::navigateBack
+                onBackClick = appState::navigateBack,
+                onSaveSuccess = appState::navigateBackWithProfileUpdate,
             )
         }
         composable(

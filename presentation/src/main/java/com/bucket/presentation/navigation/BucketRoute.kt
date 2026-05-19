@@ -31,6 +31,9 @@ sealed class BucketRoute(
         const val ARG_EMAIL = "email"
         const val ARG_INTRODUCTION = "introduction"
         const val ARG_PROFILE_IMAGE = "profileImage"
+        const val RESULT_USERNAME = "profileEditResultUsername"
+        const val RESULT_EMAIL = "profileEditResultEmail"
+        const val RESULT_INTRODUCTION = "profileEditResultIntroduction"
 
         fun createRoute(
             username: String,

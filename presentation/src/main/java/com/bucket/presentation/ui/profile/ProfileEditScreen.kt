@@ -1,5 +1,6 @@
 package com.bucket.presentation.ui.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,9 +33,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -51,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.bucket.presentation.theme.BucketappTheme
 import com.bucket.presentation.theme.HomeBackground
 import com.bucket.presentation.theme.Ink
@@ -66,15 +70,44 @@ fun ProfileEditRoute(
     introduction: String,
     profileImageUrl: String,
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit = onBackClick
+    onSaveSuccess: (username: String, email: String, introduction: String) -> Unit = { _, _, _ ->
+        onBackClick()
+    },
+    viewModel: ProfileEditViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is ProfileEditEvent.SaveSucceeded -> {
+                    Toast.makeText(
+                        context,
+                        "프로필이 성공적으로 저장되었습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    onSaveSuccess(
+                        event.profile.username,
+                        event.profile.email,
+                        event.profile.introduction
+                    )
+                }
+                is ProfileEditEvent.Error -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     ProfileEditScreen(
         initialName = username,
         initialEmail = email,
         initialBio = introduction,
         profileImageUrl = profileImageUrl,
+        isSaving = uiState.isSaving,
         onBackClick = onBackClick,
-        onSaveClick = onSaveClick
+        onSaveClick = viewModel::saveProfile
     )
 }
 
@@ -84,8 +117,9 @@ fun ProfileEditScreen(
     initialEmail: String = "",
     initialBio: String = "",
     profileImageUrl: String = "",
+    isSaving: Boolean = false,
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit,
+    onSaveClick: (username: String, email: String, introduction: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
@@ -107,7 +141,8 @@ fun ProfileEditScreen(
             item {
                 ProfileEditTopBar(
                     onBackClick = onBackClick,
-                    onSaveClick = onSaveClick
+                    isSaving = isSaving,
+                    onSaveClick = { onSaveClick(name, email, bio) }
                 )
             }
             item {
@@ -158,6 +193,7 @@ fun ProfileEditScreen(
 @Composable
 private fun ProfileEditTopBar(
     onBackClick: () -> Unit,
+    isSaving: Boolean,
     onSaveClick: () -> Unit
 ) {
     Row(
@@ -180,12 +216,20 @@ private fun ProfileEditTopBar(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(50.dp))
-                .background(Purple)
-                .clickable(onClick = onSaveClick)
+                .background(if (isSaving) Purple.copy(alpha = 0.45f) else Purple)
+                .clickable(
+                    enabled = !isSaving,
+                    onClick = onSaveClick
+                )
                 .padding(horizontal = 17.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("저장", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+            Text(
+                text = if (isSaving) "저장 중" else "저장",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
         }
     }
 }
@@ -444,6 +488,6 @@ private fun ResetFaceIcon(color: Color, modifier: Modifier = Modifier) {
 @Composable
 private fun ProfileEditScreenPreview() {
     BucketappTheme(dynamicColor = false) {
-        ProfileEditScreen(onBackClick = {}, onSaveClick = {})
+        ProfileEditScreen(onBackClick = {}, onSaveClick = { _, _, _ -> })
     }
 }

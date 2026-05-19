@@ -2,10 +2,12 @@ package com.bucket.data.repository
 
 import com.bucket.data.datasource.profile.ProfileDataSource
 import com.bucket.data.mapper.asDomain
+import com.bucket.data.network.dto.profile.ProfileUpdateRequest
 import com.example.domain.model.home.PostCard
 import com.example.domain.model.profile.Profile
 import com.example.domain.model.profile.ProfilePostStatus
 import com.example.domain.model.profile.ProfilePostType
+import com.example.domain.model.profile.ProfileUpdateResult
 import com.example.domain.repository.profile.ProfileRepository
 import javax.inject.Inject
 
@@ -18,6 +20,20 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun fetchProfile(userId: Long): Result<Profile> = runCatching {
         profileDataSource.getProfile(userId).data.asDomain()
+    }
+
+    override suspend fun updateMyProfile(
+        username: String,
+        email: String,
+        introduction: String,
+    ): Result<ProfileUpdateResult> = runCatching {
+        profileDataSource.updateMyProfile(
+            ProfileUpdateRequest(
+                username = username,
+                email = email,
+                introduction = introduction,
+            )
+        ).data.asDomain()
     }
 
     override suspend fun fetchProfilePosts(

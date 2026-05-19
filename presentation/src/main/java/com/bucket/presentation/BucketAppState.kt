@@ -46,6 +46,19 @@ data class BucketAppState(
         navController.navigate(BucketRoute.ProfileEdit.createRoute(username, email, introduction, profileImageUrl))
     }
 
+    fun navigateBackWithProfileUpdate(
+        username: String,
+        email: String,
+        introduction: String,
+    ) {
+        navController.previousBackStackEntry?.savedStateHandle?.apply {
+            set(BucketRoute.ProfileEdit.RESULT_USERNAME, username)
+            set(BucketRoute.ProfileEdit.RESULT_EMAIL, email)
+            set(BucketRoute.ProfileEdit.RESULT_INTRODUCTION, introduction)
+        }
+        navigateBack()
+    }
+
     fun navigateToHomeAfterLogin() {
         navController.navigate(BucketRoute.Home.route) {
             popUpTo(navController.graph.id) {

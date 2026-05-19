@@ -165,6 +165,20 @@ class ProfileViewModel @Inject constructor(
         _uiState.update { it.copy(isFollowing = !it.isFollowing) }
     }
 
+    fun applyProfileUpdate(
+        username: String,
+        email: String,
+        introduction: String,
+    ) {
+        _uiState.update {
+            it.copy(
+                username = username,
+                userEmail = email,
+                introduction = introduction,
+            )
+        }
+    }
+
     private fun loadProfilePosts(
         userId: Long,
         tab: ProfileTab,
