@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -27,6 +28,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +76,7 @@ fun HomeRoute(
     onBucketClick: (Long, Author) -> Unit,
     onMyProfileClick: () -> Unit,
     onOtherProfileClick: (Long) -> Unit,
+    onCreatePostClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -114,6 +118,7 @@ fun HomeRoute(
         onAuthorClick = viewModel::openAuthorProfile,
         onCategorySelected = viewModel::selectCategory,
         onBookmarkClick = viewModel::toggleBookmark,
+        onCreatePostClick = onCreatePostClick,
     )
 }
 
@@ -124,80 +129,100 @@ fun HomeScreen(
     onAuthorClick: (Long) -> Unit = {},
     onCategorySelected: (String) -> Unit = {},
     onBookmarkClick: (Long) -> Unit = {},
+    onCreatePostClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hasBuckets = uiState.postCards.isNotEmpty()
 
     Surface(modifier = modifier.fillMaxSize(), color = HomeBackground) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = WindowInsets.statusBars.asPaddingValues().let {
-                PaddingValues(
-                    top = it.calculateTopPadding() + 20.dp,
-                    bottom = 24.dp
-                )
-            },
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            // ── 상단 바: 아이콘 + 타이틀 + 벨
-            item {
-                FeedTopBar(modifier = Modifier.padding(horizontal = 20.dp))
-                Spacer(Modifier.height(18.dp))
-            }
-
-            // ── 카테고리 칩 (가로 스크롤)
-            item {
-                CategoryChipRow(
-                    categories = HOME_CATEGORIES,
-                    selectedCategory = uiState.selectedCategory,
-                    onCategorySelected = onCategorySelected,
-                )
-                Spacer(Modifier.height(18.dp))
-            }
-
-            // ── 피드 카드 목록
-            if (uiState.isLoading && !hasBuckets) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("불러오는 중...", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else if (uiState.errorMessage != null && !hasBuckets) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(uiState.errorMessage, color = Color(0xFFE04D5F), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else {
-                items(uiState.filteredBuckets, key = { it.id }) { bucket ->
-                    FeedCard(
-                        bucket = bucket,
-                        onClick = { onBucketClick(bucket.id, bucket.author) },
-                        onAuthorClick = { onAuthorClick(bucket.author.userId) },
-                        onBookmarkClick = { onBookmarkClick(bucket.id) },
-                        modifier = Modifier.padding(horizontal = 16.dp)
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = WindowInsets.statusBars.asPaddingValues().let {
+                    PaddingValues(
+                        top = it.calculateTopPadding() + 20.dp,
+                        bottom = 104.dp
                     )
-                    Spacer(Modifier.height(14.dp))
+                },
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                // ── 상단 바: 아이콘 + 타이틀 + 벨
+                item {
+                    FeedTopBar(modifier = Modifier.padding(horizontal = 20.dp))
+                    Spacer(Modifier.height(18.dp))
                 }
-                if (uiState.filteredBuckets.isEmpty()) {
+
+                // ── 카테고리 칩 (가로 스크롤)
+                item {
+                    CategoryChipRow(
+                        categories = HOME_CATEGORIES,
+                        selectedCategory = uiState.selectedCategory,
+                        onCategorySelected = onCategorySelected,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                }
+
+                // ── 피드 카드 목록
+                if (uiState.isLoading && !hasBuckets) {
                     item {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "아직 게시물이 없어요",
-                                color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold
-                            )
+                            Text("불러오는 중...", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else if (uiState.errorMessage != null && !hasBuckets) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(uiState.errorMessage, color = Color(0xFFE04D5F), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    items(uiState.filteredBuckets, key = { it.id }) { bucket ->
+                        FeedCard(
+                            bucket = bucket,
+                            onClick = { onBucketClick(bucket.id, bucket.author) },
+                            onAuthorClick = { onAuthorClick(bucket.author.userId) },
+                            onBookmarkClick = { onBookmarkClick(bucket.id) },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        Spacer(Modifier.height(14.dp))
+                    }
+                    if (uiState.filteredBuckets.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "아직 게시물이 없어요",
+                                    color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
+            }
+
+            FloatingActionButton(
+                onClick = onCreatePostClick,
+                containerColor = Purple,
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(4.dp),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 24.dp,
+                        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
+                    )
+                    .size(56.dp)
+            ) {
+                HomePlusIcon()
             }
         }
     }
@@ -614,6 +639,27 @@ private fun MiniMandalaCell(
 }
 
 // ─── 아이콘 ───────────────────────────────────────────────────────────────────
+
+@Composable
+private fun HomePlusIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier.size(24.dp)) {
+        val stroke = 2.8.dp.toPx()
+        drawLine(
+            color = Color.White,
+            start = Offset(size.width * 0.50f, size.height * 0.20f),
+            end = Offset(size.width * 0.50f, size.height * 0.80f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = Color.White,
+            start = Offset(size.width * 0.20f, size.height * 0.50f),
+            end = Offset(size.width * 0.80f, size.height * 0.50f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
 
 @Composable
 private fun MiniGridIcon(modifier: Modifier = Modifier) {

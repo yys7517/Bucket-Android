@@ -2,11 +2,15 @@ package com.bucket.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.bucket.presentation.navigation.BucketRoute
+import com.example.domain.model.post.PostDetail
 import com.example.domain.model.user.Author
 import kotlinx.coroutines.CoroutineScope
 
@@ -15,6 +19,8 @@ data class BucketAppState(
     val navController: NavHostController,
     val coroutineScope: CoroutineScope
 ) {
+    private var createdPostDetail: PostDetail? by mutableStateOf(null)
+
     fun navigateToBottomBarRoute(route: BucketRoute) {
         navController.navigate(route.route) {
             popUpTo(navController.graph.startDestinationId) {
@@ -35,6 +41,26 @@ data class BucketAppState(
 
     fun navigateToMyProfile() {
         navigateToBottomBarRoute(BucketRoute.Profile)
+    }
+
+    fun navigateToPostCreate() {
+        navController.navigate(BucketRoute.PostCreate.route)
+    }
+
+    fun navigateToCreatedPostDetail(post: PostDetail) {
+        createdPostDetail = post
+        navController.navigate(BucketRoute.BucketDetail.createRoute(post.id, post.author)) {
+            popUpTo(BucketRoute.PostCreate.route) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun consumeCreatedPostDetail(postId: Long): PostDetail? {
+        val post = createdPostDetail?.takeIf { it.id == postId }
+        if (post != null) createdPostDetail = null
+        return post
     }
 
     fun navigateToProfileEdit(

@@ -4,6 +4,7 @@ import com.bucket.data.datasource.post.PostDataSource
 import com.bucket.data.mapper.asDomain
 import com.bucket.data.mapper.asSmallGoal
 import com.bucket.data.mapper.asTodo
+import com.bucket.data.network.dto.post.PostCreateRequest
 import com.bucket.data.network.dto.post.PostUpdateRequest
 import com.bucket.data.network.dto.post.SmallGoalCreateRequest
 import com.bucket.data.network.dto.post.SmallGoalUpdateRequest
@@ -21,6 +22,23 @@ import javax.inject.Inject
 class PostRepositoryImpl @Inject constructor(
     private val postDataSource: PostDataSource
 ) : PostRepository {
+    override suspend fun createPost(
+        goal: String,
+        categoryId: Long,
+        startDate: String?,
+        memo: String,
+        author: Author,
+    ): Result<PostDetail> = runCatching {
+        postDataSource.createPost(
+            PostCreateRequest(
+                goal = goal,
+                categoryId = categoryId,
+                startDate = startDate?.takeIf { it.isNotBlank() },
+                memo = memo,
+            )
+        ).data.asDomain(author)
+    }
+
     override suspend fun fetchPostDetail(postId: Long, author: Author): Result<PostDetail> = runCatching {
         postDataSource.getPostDetail(postId).data.asDomain(author)
     }

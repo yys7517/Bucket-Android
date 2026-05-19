@@ -4,6 +4,7 @@ import com.bucket.data.network.di.DefaultNetwork
 import com.bucket.data.network.dto.post.BookmarkResponse
 import com.bucket.data.network.dto.common.BaseResponse
 import com.bucket.data.network.dto.post.LikeResponse
+import com.bucket.data.network.dto.post.PostCreateRequest
 import com.bucket.data.network.dto.post.PostDetailResponse
 import com.bucket.data.network.dto.post.PostUpdateRequest
 import com.bucket.data.network.dto.post.PostUpdateResponse
@@ -27,6 +28,12 @@ class PostRemoteDataSource @Inject constructor(
     @param:DefaultNetwork
     private val client: HttpClient,
 ): PostDataSource {
+    override suspend fun createPost(request: PostCreateRequest): BaseResponse<PostDetailResponse> =
+        client.post("posts") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
     override suspend fun getPostDetail(postId: Long): BaseResponse<PostDetailResponse> =
         client.get("posts/$postId").body()
 

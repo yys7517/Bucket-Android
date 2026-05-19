@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -17,6 +18,7 @@ import com.bucket.presentation.ui.category.CategoryRoute
 import com.bucket.presentation.ui.detail.PostDetailRoute
 import com.bucket.presentation.ui.home.HomeRoute
 import com.bucket.presentation.ui.login.LoginRoute
+import com.bucket.presentation.ui.postcreate.PostCreateRoute
 import com.bucket.presentation.ui.profile.OtherProfileRoute
 import com.bucket.presentation.ui.profile.ProfileEditRoute
 import com.bucket.presentation.ui.profile.ProfileEditResult
@@ -52,6 +54,13 @@ fun BucketNavHost(
                 onBucketClick = { id, author -> appState.navigateToBucketDetail(id, author) },
                 onMyProfileClick = appState::navigateToMyProfile,
                 onOtherProfileClick = appState::navigateToOtherProfile,
+                onCreatePostClick = appState::navigateToPostCreate,
+            )
+        }
+        composable(BucketRoute.PostCreate.route) {
+            PostCreateRoute(
+                onBackClick = appState::navigateBack,
+                onPostCreated = appState::navigateToCreatedPostDetail,
             )
         }
         composable(
@@ -64,13 +73,18 @@ fun BucketNavHost(
             )
         ) { backStackEntry ->
             val args = backStackEntry.arguments
+            val postId = args?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L
+            val createdPost = remember(postId) {
+                appState.consumeCreatedPostDetail(postId)
+            }
             PostDetailRoute(
-                postId = args?.getLong(BucketRoute.BucketDetail.ARG_BUCKET_ID) ?: 0L,
+                postId = postId,
                 author = Author(
                     userId = args?.getLong(BucketRoute.BucketDetail.ARG_USER_ID) ?: 0L,
                     username = args?.getString(BucketRoute.BucketDetail.ARG_USERNAME).orEmpty(),
                     profileImgUrl = args?.getString(BucketRoute.BucketDetail.ARG_PROFILE_IMAGE).orEmpty()
                 ),
+                initialPost = createdPost,
                 onBackClick = appState::navigateBack,
                 onAuthorClick = appState::navigateToOtherProfile,
             )
@@ -103,6 +117,7 @@ fun BucketNavHost(
             ProfileRoute(
                 onEditClick = appState::navigateToProfileEdit,
                 onBucketClick = appState::navigateToBucketDetail,
+                onCreatePostClick = appState::navigateToPostCreate,
                 profileEditResult = profileEditResult,
                 onProfileEditResultConsumed = {
                     savedStateHandle.remove<String>(BucketRoute.ProfileEdit.RESULT_USERNAME)

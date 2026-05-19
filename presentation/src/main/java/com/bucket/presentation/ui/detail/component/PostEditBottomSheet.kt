@@ -39,6 +39,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -283,7 +284,7 @@ internal fun PostEditBottomSheet(
 // ─── Wheel Date Picker ────────────────────────────────────────────────────────
 
 @Composable
-private fun WheelDatePicker(
+internal fun WheelDatePicker(
     year: Int,
     month: Int,
     day: Int,
@@ -397,15 +398,19 @@ private fun WheelColumn(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val padding = rowHeight * (visibleCount / 2)
+    val currentItems by rememberUpdatedState(items)
+    val currentSelected by rememberUpdatedState(selected)
+    val currentOnSelectedChange by rememberUpdatedState(onSelectedChange)
 
     // 스크롤이 멈췄을 때 중앙(=firstVisibleItemIndex) 값을 외부로 전파.
     LaunchedEffect(listState) {
         snapshotFlow {
             !listState.isScrollInProgress to listState.firstVisibleItemIndex
         }.collect { (settled, idx) ->
-            if (settled && idx in items.indices) {
-                val newVal = items[idx]
-                if (newVal != selected) onSelectedChange(newVal)
+            val values = currentItems
+            if (settled && idx in values.indices) {
+                val newVal = values[idx]
+                if (newVal != currentSelected) currentOnSelectedChange(newVal)
             }
         }
     }

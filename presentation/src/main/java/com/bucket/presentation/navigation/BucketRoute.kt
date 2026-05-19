@@ -10,6 +10,7 @@ sealed class BucketRoute(
     data object Login : BucketRoute("login", "로그인")
     data object Category : BucketRoute("category", "카테고리")
     data object Home : BucketRoute("home", "홈")
+    data object PostCreate : BucketRoute("post/create", "게시글 작성")
     data object BucketDetail : BucketRoute("bucket/{bucketId}?userId={userId}&username={username}&profileImage={profileImage}", "버킷 상세") {
         const val ARG_BUCKET_ID = "bucketId"
         const val ARG_USER_ID = "userId"

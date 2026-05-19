@@ -33,6 +33,7 @@ import com.bucket.presentation.ui.detail.component.PostEditBottomSheet
 import com.bucket.presentation.ui.detail.component.PostHeaderCard
 import com.bucket.presentation.ui.detail.extension.toComposeColor
 import com.bucket.presentation.ui.home.component.categoryAccent
+import com.example.domain.model.post.PostDetail
 import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.user.Author
 
@@ -42,12 +43,19 @@ import com.example.domain.model.user.Author
 fun PostDetailRoute(
     postId: Long,
     author: Author,
+    initialPost: PostDetail? = null,
     onBackClick: () -> Unit,
     onAuthorClick: (Long) -> Unit = {},
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    LaunchedEffect(postId) { viewModel.loadPostDetail(postId, author) }
+    LaunchedEffect(postId, initialPost) {
+        if (initialPost != null) {
+            viewModel.showCreatedPostDetail(initialPost)
+        } else {
+            viewModel.loadPostDetail(postId, author)
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->

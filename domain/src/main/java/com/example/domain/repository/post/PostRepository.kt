@@ -9,6 +9,13 @@ import com.example.domain.model.post.SmallGoal
 import com.example.domain.model.user.Author
 
 interface PostRepository {
+    suspend fun createPost(
+        goal: String,
+        categoryId: Long,
+        startDate: String?,
+        memo: String,
+        author: Author,
+    ): Result<PostDetail>
     suspend fun fetchPostDetail(postId: Long, author: Author): Result<PostDetail>
     suspend fun toggleLike(postId: Long): Result<LikeResult>
     suspend fun toggleBookmark(postId: Long): Result<BookmarkResult>

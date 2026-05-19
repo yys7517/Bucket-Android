@@ -72,6 +72,21 @@ class PostDetailViewModel @Inject constructor(
     private var savedPostId: Long = 0L
     private var savedAuthor: Author? = null
 
+    fun showCreatedPostDetail(post: PostDetail) {
+        savedPostId = post.id
+        savedAuthor = post.author
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                errorMessage = null,
+                postDetail = post,
+                isLiked = post.isLiked,
+                likeCount = post.likeCount,
+                isBookmarked = post.isBookmarked,
+            )
+        }
+    }
+
     fun loadPostDetail(postId: Long, author: Author) {
         if (postId <= 0L) {
             _uiState.update { it.copy(isLoading = false, errorMessage = "잘못된 게시글입니다.") }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -74,6 +75,7 @@ data class ProfileEditResult(
 fun ProfileRoute(
     onEditClick: (username: String, email: String, introduction: String, profileImageUrl: String) -> Unit = { _, _, _, _ -> },
     onBucketClick: (Long, Author) -> Unit = { _, _ -> },
+    onCreatePostClick: () -> Unit = {},
     profileEditResult: ProfileEditResult? = null,
     onProfileEditResultConsumed: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
@@ -97,7 +99,7 @@ fun ProfileRoute(
         onStatusSelected = viewModel::selectStatus,
         onFollowClick = viewModel::toggleFollow,
         onBucketClick = onBucketClick,
-        onFabClick = {},
+        onFabClick = onCreatePostClick,
         onEditClick = {
             onEditClick(
                 uiState.username,
@@ -157,7 +159,14 @@ fun ProfileScreen(
                     contentColor = Color.White,
                     elevation = FloatingActionButtonDefaults.elevation(4.dp),
                     shape = CircleShape,
-                    modifier = Modifier.size(56.dp)
+                    modifier = Modifier
+                        .padding(
+                            end = 8.dp,
+                            bottom = WindowInsets.navigationBars
+                                .asPaddingValues()
+                                .calculateBottomPadding() + 8.dp
+                        )
+                        .size(56.dp)
                 ) {
                     PlusIcon()
                 }
@@ -316,20 +325,13 @@ private fun ProfileHeader(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clickable(onClick = onBackClick)
+                    .padding(8.dp)
             ) {
                 BackArrowIcon(color = Ink)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = uiState.username,
-                    color = Ink,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
             }
         } else {
-            // 내 프로필: "마이"
             Text(
-                text = "마이",
+                text = "내 프로필",
                 color = Ink,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.ExtraBold
