@@ -1,13 +1,13 @@
 package com.bucket.data.mapper
 
-import com.bucket.data.network.dto.home.BucketCardResponse
-import com.example.domain.model.home.PopularBucket
+import com.bucket.data.network.dto.home.PostCardResponse
+import com.example.domain.model.home.PostCard
 import com.example.domain.model.home.RecentBucket
 import com.example.domain.model.home.SmallGoalSummary
 import com.example.domain.model.user.Author
 
-fun BucketCardResponse.asPopularBucket(): PopularBucket =
-    PopularBucket(
+fun PostCardResponse.asDomain(): PostCard =
+    PostCard(
         id = this.id,
         category = this.category,
         categoryColor = this.categoryColor,
@@ -27,9 +27,10 @@ fun BucketCardResponse.asPopularBucket(): PopularBucket =
             SmallGoalSummary(content = v.content, color = v.color, isCompleted = v.isCompleted)
         },
         isBookmarked = this.isBookmarked,
+        status = this.status,
     )
 
-fun BucketCardResponse.asRecentBucket(): RecentBucket =
+fun PostCardResponse.asRecentBucket(): RecentBucket =
     RecentBucket(
         id = this.id,
         category = this.category,

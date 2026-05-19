@@ -6,5 +6,6 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     suspend fun loginWithKakao(accessToken: String): Result<UserInfo>
     suspend fun hasSavedLogin(): Boolean
+    suspend fun getSavedUserId(): Long?
     fun observeSavedLogin(): Flow<Boolean>
 }

@@ -8,6 +8,8 @@ import com.bucket.data.datasource.home.HomeDataSource
 import com.bucket.data.datasource.home.HomeRemoteDataSource
 import com.bucket.data.datasource.post.PostDataSource
 import com.bucket.data.datasource.post.PostRemoteDataSource
+import com.bucket.data.datasource.profile.ProfileDataSource
+import com.bucket.data.datasource.profile.ProfileRemoteDataSource
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -40,4 +42,10 @@ internal abstract class DataSourceModule {
     abstract fun bindPostDataSource(
         postRemoteDataSource: PostRemoteDataSource
     ): PostDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileDataSource(
+        profileRemoteDataSource: ProfileRemoteDataSource
+    ): ProfileDataSource
 }

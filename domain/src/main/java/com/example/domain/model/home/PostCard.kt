@@ -2,7 +2,7 @@ package com.example.domain.model.home
 
 import com.example.domain.model.user.Author
 
-data class PopularBucket(
+data class PostCard(
     val id: Long,
     val category: String,
     val categoryColor: String,
@@ -16,4 +16,5 @@ data class PopularBucket(
     val progressRate: Int,
     val smallGoals: Map<Int, SmallGoalSummary>,
     val isBookmarked: Boolean = false,
+    val status: String = "",
 )

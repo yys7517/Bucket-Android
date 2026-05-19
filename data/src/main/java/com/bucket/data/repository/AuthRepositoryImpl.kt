@@ -33,6 +33,8 @@ class AuthRepositoryImpl @Inject constructor(
             refreshToken.isNullOrBlank().not()
     }
 
+    override suspend fun getSavedUserId(): Long? = authLocalDataSource.userId.first()
+
     override fun observeSavedLogin(): Flow<Boolean> =
         combine(
             authLocalDataSource.userId,

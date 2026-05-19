@@ -4,7 +4,7 @@ import com.bucket.data.network.dto.user.UserInfoResponse
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class BucketCardResponse(
+data class PostCardResponse(
     val id: Long,
     val category: String,
     val categoryColor: String = "",
@@ -16,4 +16,5 @@ data class BucketCardResponse(
     val userInfo: UserInfoResponse,
     val smallGoalSummary: GoalSummaryResponse,
     val smallGoals: Map<Int, SmallGoalSummaryResponse> = emptyMap(),
+    val status: String = "",
 )
