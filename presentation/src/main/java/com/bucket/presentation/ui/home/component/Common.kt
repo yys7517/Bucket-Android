@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,7 +32,11 @@ fun UserAvatar(
     modifier: Modifier = Modifier,
     size: Int = 28
 ) {
-    if (profileImageUrl.isBlank()) {
+    var showInitialBadge by remember(profileImageUrl) {
+        mutableStateOf(profileImageUrl.isBlank())
+    }
+
+    if (showInitialBadge) {
         InitialBadge(
             text = username.initial(),
             color = color,
@@ -41,6 +49,7 @@ fun UserAvatar(
             model = profileImageUrl,
             contentDescription = "$username 프로필 이미지",
             contentScale = ContentScale.Crop,
+            onError = { showInitialBadge = true },
             modifier = modifier
                 .size(size.dp)
                 .clip(CircleShape)

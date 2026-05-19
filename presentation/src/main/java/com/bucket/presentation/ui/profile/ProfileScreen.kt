@@ -56,16 +56,18 @@ import com.bucket.presentation.theme.Purple
 import com.bucket.presentation.theme.SoftLine
 import com.bucket.presentation.ui.home.component.UserAvatar
 import com.bucket.presentation.ui.home.component.categoryAccent
-import com.example.domain.model.home.PopularBucket
+import com.example.domain.model.home.PostCard
 import com.example.domain.model.home.SmallGoalSummary
+import com.example.domain.model.profile.ProfilePostStatus
+import com.example.domain.model.user.Author
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 /** 내 프로필 */
 @Composable
 fun ProfileRoute(
-    onEditClick: () -> Unit = {},
-    onBucketClick: (Long) -> Unit = {},
+    onEditClick: (username: String, email: String, introduction: String, profileImageUrl: String) -> Unit = { _, _, _, _ -> },
+    onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     LaunchedEffect(Unit) { viewModel.loadProfile(isMine = true) }
@@ -73,10 +75,18 @@ fun ProfileRoute(
     ProfileScreen(
         uiState = uiState,
         onTabSelected = viewModel::selectTab,
+        onStatusSelected = viewModel::selectStatus,
         onFollowClick = viewModel::toggleFollow,
         onBucketClick = onBucketClick,
         onFabClick = {},
-        onEditClick = onEditClick,
+        onEditClick = {
+            onEditClick(
+                uiState.username,
+                uiState.userEmail,
+                uiState.introduction,
+                uiState.profileImgUrl
+            )
+        },
     )
 }
 
@@ -85,6 +95,7 @@ fun ProfileRoute(
 fun OtherProfileRoute(
     userId: Long,
     onBackClick: () -> Unit,
+    onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     LaunchedEffect(userId) { viewModel.loadProfile(userId = userId, isMine = false) }
@@ -92,8 +103,9 @@ fun OtherProfileRoute(
     ProfileScreen(
         uiState = uiState,
         onTabSelected = viewModel::selectTab,
+        onStatusSelected = viewModel::selectStatus,
         onFollowClick = viewModel::toggleFollow,
-        onBucketClick = {},
+        onBucketClick = onBucketClick,
         onFabClick = {},
         onBackClick = onBackClick,
     )
@@ -105,8 +117,9 @@ fun OtherProfileRoute(
 fun ProfileScreen(
     uiState: ProfileUiState,
     onTabSelected: (ProfileTab) -> Unit = {},
+    onStatusSelected: (ProfilePostStatus) -> Unit = {},
     onFollowClick: () -> Unit = {},
-    onBucketClick: (Long) -> Unit = {},
+    onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     onFabClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
     onBackClick: (() -> Unit)? = null,
@@ -133,7 +146,7 @@ fun ProfileScreen(
         }
     ) { innerPadding ->
         // 탭 목록 결정 (내 프로필: 3개, 상대방: 1개)
-        val tabs = if (uiState.isMine) ProfileTab.entries else listOf(ProfileTab.MY_BUCKETS)
+        val tabs = if (uiState.isMine) ProfileTab.entries else listOf(ProfileTab.POSTS)
         val selectedTabIndex = tabs.indexOf(uiState.selectedTab).coerceAtLeast(0)
 
         LazyVerticalGrid(
@@ -158,6 +171,19 @@ fun ProfileScreen(
                     onEditClick = onEditClick,
                     onBackClick = onBackClick,
                 )
+            }
+
+            if (uiState.errorMessage != null) {
+                item(span = { GridItemSpan(2) }) {
+                    Text(
+                        text = uiState.errorMessage.orEmpty(),
+                        color = Color(0xFFE04D5F),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
 
             // ── 탭 행 (전체 너비)
@@ -196,12 +222,32 @@ fun ProfileScreen(
                             }
                         }
                     }
+                    ProfileStatusFilter(
+                        selectedStatus = uiState.selectedStatus,
+                        onStatusSelected = onStatusSelected,
+                    )
                     Spacer(Modifier.height(16.dp))
                 }
             }
 
             // ── 버킷 카드 그리드 (2열)
-            if (uiState.displayedBuckets.isEmpty()) {
+            if (uiState.isLoading) {
+                item(span = { GridItemSpan(2) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "불러오는 중...",
+                            color = Muted,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            } else if (uiState.displayedBuckets.isEmpty()) {
                 item(span = { GridItemSpan(2) }) {
                     Box(
                         modifier = Modifier
@@ -223,8 +269,8 @@ fun ProfileScreen(
                     key = { it.id }
                 ) { bucket ->
                     ProfileBucketCard(
-                        bucket = bucket,
-                        onClick = { onBucketClick(bucket.id) },
+                        post = bucket,
+                        onClick = { onBucketClick(bucket.id, bucket.author) },
                     )
                 }
             }
@@ -295,33 +341,38 @@ private fun ProfileHeader(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Text(
-                    text = "@${uiState.userId}",
-                    color = Muted,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (uiState.userEmail.isNotBlank()) {
+                    Text(
+                        text = uiState.userEmail,
+                        color = Muted,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             if (uiState.isMine) {
                 PillOutlineButton(label = "편집", onClick = onEditClick)
-            } else {
+            } /*else {
                 if (uiState.isFollowing) {
                     PillOutlineButton(label = "팔로잉", onClick = onFollowClick)
                 } else {
                     PillFilledButton(label = "팔로우", onClick = onFollowClick)
                 }
-            }
+            }*/
         }
 
         // ── 자기소개
-        if (uiState.bio.isNotBlank()) {
+        if (uiState.introduction.isNotBlank()) {
             Text(
-                text = uiState.bio,
+                text = uiState.introduction,
                 color = Ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
-                lineHeight = 20.sp
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 23.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp)
             )
         }
 
@@ -339,7 +390,52 @@ private fun ProfileHeader(
             StatDivider()
             StatItem(label = "완료", value = uiState.completedBucketCount.toString(), valueColor = Purple)
             StatDivider()
-            StatItem(label = "좋아요", value = uiState.totalLikeCount.toString(), valueColor = Ink)
+            StatItem(label = "받은 좋아요", value = uiState.totalLikeCount.toString(), valueColor = Ink)
+        }
+    }
+}
+
+@Composable
+private fun ProfileStatusFilter(
+    selectedStatus: ProfilePostStatus,
+    onStatusSelected: (ProfilePostStatus) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        val statuses = listOf(
+            ProfilePostStatus.ALL,
+            ProfilePostStatus.IN_PROGRESS,
+            ProfilePostStatus.COMPLETED,
+            ProfilePostStatus.DRAFT,
+        )
+        statuses.forEach { status ->
+            val selected = selectedStatus == status
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(if (selected) Ink else Color.White)
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) Ink else SoftLine,
+                        shape = RoundedCornerShape(50.dp)
+                    )
+                    .clickable { onStatusSelected(status) }
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = status.label,
+                    color = if (selected) Color.White else Color(0xFF7F788E),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -397,11 +493,11 @@ private fun PillOutlineButton(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun ProfileBucketCard(
-    bucket: PopularBucket,
+    post: PostCard,
     onClick: () -> Unit,
 ) {
-    val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
-    val status = bucket.bucketStatus()
+    val accentColor = categoryAccent(post.category, post.categoryColor)
+    val status = post.postStatus()
 
     Column(
         modifier = Modifier
@@ -422,37 +518,25 @@ private fun ProfileBucketCard(
             // 상태 배지
             StatusBadge(status = status)
             // 카테고리 칩
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(accentColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = bucket.category,
-                    color = accentColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
+            ProfileCategoryChip(category = post.category, accentColor = accentColor)
         }
 
         // 미니 만다라트
         SmallMiniMandala(
             accentColor = accentColor,
-            title = bucket.title,
-            smallGoals = bucket.smallGoals,
+            title = post.title,
+            smallGoals = post.smallGoals,
         )
 
         // 제목
         Text(
-            text = bucket.title,
+            text = post.title,
             color = Ink,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.ExtraBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 20.sp,
+            lineHeight = 21.sp,
         )
 
         // 진행률 바
@@ -462,13 +546,13 @@ private fun ProfileBucketCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${bucket.completedCount}/${bucket.totalCount}",
+                    text = "${post.completedCount}/${post.totalCount}",
                     color = Muted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "${bucket.progressRate}%",
+                    text = "${post.progressRate}%",
                     color = accentColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold
@@ -481,8 +565,8 @@ private fun ProfileBucketCard(
                     .clip(RoundedCornerShape(50.dp))
                     .background(accentColor.copy(alpha = 0.14f))
             ) {
-                val fraction = if (bucket.totalCount > 0)
-                    bucket.completedCount.toFloat() / bucket.totalCount else 0f
+                val fraction = if (post.totalCount > 0)
+                    post.completedCount.toFloat() / post.totalCount else 0f
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(fraction.coerceIn(0f, 1f))
@@ -496,23 +580,76 @@ private fun ProfileBucketCard(
 }
 
 @Composable
-private fun StatusBadge(status: BucketStatus) {
-    val (bgColor, textColor) = when (status) {
-        BucketStatus.DONE        -> Color(0xFFE8F7EF) to Color(0xFF2F9B68)
-        BucketStatus.IN_PROGRESS -> LightPurple to Purple
-        BucketStatus.PENDING     -> Color(0xFFF0EEF5) to Muted
+private fun ProfileCategoryChip(category: String, accentColor: Color) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50.dp))
+            .background(accentColor.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(accentColor)
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = category,
+            color = accentColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
-    Box(
+}
+
+@Composable
+private fun StatusBadge(status: PostStatus) {
+    val (bgColor, textColor) = when (status) {
+        PostStatus.COMPLETED        -> Color(0xFFE8F7EF) to Color(0xFF2F9B68)
+        PostStatus.IN_PROGRESS -> LightPurple to Purple
+        PostStatus.DRAFT     -> Color(0xFFF0EEF5) to Muted
+    }
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50.dp))
             .background(bgColor)
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (status == PostStatus.COMPLETED) {
+            ProfileCheckIcon(modifier = Modifier.size(10.dp), color = textColor)
+        }
         Text(
             text = status.label,
             color = textColor,
             fontSize = 11.sp,
             fontWeight = FontWeight.ExtraBold
+        )
+    }
+}
+
+@Composable
+private fun ProfileCheckIcon(modifier: Modifier = Modifier, color: Color) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val stroke = 1.8.dp.toPx()
+        drawLine(
+            color = color,
+            start = androidx.compose.ui.geometry.Offset(size.width * 0.18f, size.height * 0.54f),
+            end = androidx.compose.ui.geometry.Offset(size.width * 0.42f, size.height * 0.76f),
+            strokeWidth = stroke,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = androidx.compose.ui.geometry.Offset(size.width * 0.42f, size.height * 0.76f),
+            end = androidx.compose.ui.geometry.Offset(size.width * 0.84f, size.height * 0.28f),
+            strokeWidth = stroke,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
     }
 }
@@ -556,7 +693,7 @@ private fun SmallMiniMandala(
                             Text(
                                 text = title,
                                 color = Color.White,
-                                fontSize = 7.sp,
+                                fontSize = 8.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
@@ -588,7 +725,7 @@ private fun SmallMiniMandala(
                                 Text(
                                     text = goal.content,
                                     color = if (goal.isCompleted) Color.White else accentColor,
-                                    fontSize = 6.sp,
+                                    fontSize = 7.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,

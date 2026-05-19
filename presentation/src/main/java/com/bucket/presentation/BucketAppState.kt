@@ -33,8 +33,17 @@ data class BucketAppState(
         navController.navigate(BucketRoute.OtherProfile.createRoute(userId))
     }
 
-    fun navigateToProfileEdit() {
-        navController.navigate(BucketRoute.ProfileEdit.route)
+    fun navigateToMyProfile() {
+        navigateToBottomBarRoute(BucketRoute.Profile)
+    }
+
+    fun navigateToProfileEdit(
+        username: String,
+        email: String,
+        introduction: String,
+        profileImageUrl: String
+    ) {
+        navController.navigate(BucketRoute.ProfileEdit.createRoute(username, email, introduction, profileImageUrl))
     }
 
     fun navigateToHomeAfterLogin() {

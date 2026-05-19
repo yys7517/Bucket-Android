@@ -2,7 +2,8 @@ package com.bucket.presentation.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.domain.model.home.PopularBucket
+import com.example.domain.model.home.PostCard
+import com.example.domain.usecase.auth.GetSavedUserIdUseCase
 import com.example.domain.usecase.home.GetPopularBucketsUseCase
 import com.example.domain.usecase.post.ToggleBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,21 +20,23 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isLoading: Boolean = false,
-    val popularBuckets: List<PopularBucket> = emptyList(),
+    val postCards: List<PostCard> = emptyList(),
     val selectedCategory: String = "전체",
     val errorMessage: String? = null
 ) {
-    val filteredBuckets: List<PopularBucket>
-        get() = if (selectedCategory == "전체") popularBuckets
-                else popularBuckets.filter { it.category == selectedCategory }
+    val filteredBuckets: List<PostCard>
+        get() = if (selectedCategory == "전체") postCards
+                else postCards.filter { it.category == selectedCategory }
 }
 
 sealed interface HomeEvent {
     data class BookmarkUpdated(val isBookmarked: Boolean) : HomeEvent
+    data class ProfileRequested(val userId: Long, val isMine: Boolean) : HomeEvent
 }
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val getSavedUserIdUseCase: GetSavedUserIdUseCase,
     private val getPopularBucketsUseCase: GetPopularBucketsUseCase,
     private val toggleBookmarkUseCase: ToggleBookmarkUseCase,
 ) : ViewModel() {
@@ -53,7 +56,7 @@ class HomeViewModel @Inject constructor(
         loadHomeJob = viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(
-                    isLoading = state.popularBuckets.isEmpty(),
+                    isLoading = state.postCards.isEmpty(),
                     errorMessage = null
                 )
             }
@@ -63,7 +66,7 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
-                            popularBuckets = state.popularBuckets.reuseUnchangedItems(popularBuckets)
+                            postCards = state.postCards.reuseUnchangedItems(popularBuckets)
                         )
                     }
                 }
@@ -71,7 +74,7 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
-                            errorMessage = if (state.popularBuckets.isEmpty()) {
+                            errorMessage = if (state.postCards.isEmpty()) {
                                 throwable.message ?: "홈 정보를 불러오지 못했습니다."
                             } else {
                                 null
@@ -86,22 +89,36 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
+    fun openAuthorProfile(userId: Long) {
+        if (userId <= 0L) return
+
+        viewModelScope.launch {
+            val savedUserId = getSavedUserIdUseCase()
+            _events.trySend(
+                HomeEvent.ProfileRequested(
+                    userId = userId,
+                    isMine = savedUserId == userId
+                )
+            )
+        }
+    }
+
     fun toggleBookmark(postId: Long) {
-        val currentBuckets = _uiState.value.popularBuckets
+        val currentBuckets = _uiState.value.postCards
         val target = currentBuckets.firstOrNull { it.id == postId } ?: return
         val optimisticBuckets = currentBuckets.updateBookmark(
             postId = postId,
             isBookmarked = !target.isBookmarked
         )
 
-        _uiState.update { it.copy(popularBuckets = optimisticBuckets) }
+        _uiState.update { it.copy(postCards = optimisticBuckets) }
 
         viewModelScope.launch {
             toggleBookmarkUseCase(postId)
                 .onSuccess { result ->
                     _uiState.update { state ->
                         state.copy(
-                            popularBuckets = state.popularBuckets.updateBookmark(
+                            postCards = state.postCards.updateBookmark(
                                 postId = postId,
                                 isBookmarked = result.isBookmarked
                             )
@@ -110,22 +127,22 @@ class HomeViewModel @Inject constructor(
                     _events.trySend(HomeEvent.BookmarkUpdated(result.isBookmarked))
                 }
                 .onFailure {
-                    _uiState.update { it.copy(popularBuckets = currentBuckets) }
+                    _uiState.update { it.copy(postCards = currentBuckets) }
                 }
         }
     }
 
-    private fun List<PopularBucket>.reuseUnchangedItems(next: List<PopularBucket>): List<PopularBucket> {
+    private fun List<PostCard>.reuseUnchangedItems(next: List<PostCard>): List<PostCard> {
         val previousById = associateBy { it.id }
         return next.map { bucket ->
             previousById[bucket.id]?.takeIf { it == bucket } ?: bucket
         }
     }
 
-    private fun List<PopularBucket>.updateBookmark(
+    private fun List<PostCard>.updateBookmark(
         postId: Long,
         isBookmarked: Boolean,
-    ): List<PopularBucket> = map { bucket ->
+    ): List<PostCard> = map { bucket ->
         if (bucket.id == postId) bucket.copy(isBookmarked = isBookmarked) else bucket
     }
 }

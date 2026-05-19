@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.theme.SoftLine
-import com.example.domain.model.home.PopularBucket
+import com.example.domain.model.home.PostCard
 
 @Composable
 fun PopularBucketCard(
-    bucket: PopularBucket,
+    bucket: PostCard,
     onClick: () -> Unit = {}
 ) {
     Column(

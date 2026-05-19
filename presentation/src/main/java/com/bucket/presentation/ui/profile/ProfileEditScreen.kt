@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,13 +57,22 @@ import com.bucket.presentation.theme.Ink
 import com.bucket.presentation.theme.Muted
 import com.bucket.presentation.theme.Purple
 import com.bucket.presentation.theme.SoftLine
+import com.bucket.presentation.ui.home.component.UserAvatar
 
 @Composable
 fun ProfileEditRoute(
+    username: String,
+    email: String,
+    introduction: String,
+    profileImageUrl: String,
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit = onBackClick
 ) {
     ProfileEditScreen(
+        initialName = username,
+        initialEmail = email,
+        initialBio = introduction,
+        profileImageUrl = profileImageUrl,
         onBackClick = onBackClick,
         onSaveClick = onSaveClick
     )
@@ -70,14 +80,17 @@ fun ProfileEditRoute(
 
 @Composable
 fun ProfileEditScreen(
+    initialName: String = "",
+    initialEmail: String = "",
+    initialBio: String = "",
+    profileImageUrl: String = "",
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var name by rememberSaveable { mutableStateOf("윤영선") }
-    var userId by rememberSaveable { mutableStateOf("youngseon") }
-    var bio by rememberSaveable { mutableStateOf("한 칸씩 채워가는 중. 백엔드 개발자, 러너, 그리고 다관의 제주도민.") }
-    var showPhotoSheet by remember { mutableStateOf(false) }
+    var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
+    var email by rememberSaveable(initialEmail) { mutableStateOf(initialEmail) }
+    var bio by rememberSaveable(initialBio) { mutableStateOf(initialBio) }
     val statusPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Surface(
@@ -100,7 +113,7 @@ fun ProfileEditScreen(
             item {
                 ProfilePhotoEditor(
                     name = name,
-                    onPhotoClick = { showPhotoSheet = true }
+                    profileImageUrl = profileImageUrl
                 )
             }
             item {
@@ -119,11 +132,14 @@ fun ProfileEditScreen(
                         maxLength = 16
                     )
                     UnderlineInput(
-                        label = "아이디",
-                        value = userId,
-                        onValueChange = { if (it.length <= 20) userId = it },
-                        maxLength = 20,
-                        helper = "@$userId · 사용 가능한 아이디예요"
+                        label = "이메일",
+                        value = email,
+                        onValueChange = { if (it.length <= 60) email = it },
+                        maxLength = 60,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            keyboardType = KeyboardType.Email
+                        )
                     )
                     UnderlineInput(
                         label = "자기소개",
@@ -137,12 +153,6 @@ fun ProfileEditScreen(
             }
         }
     }
-
-    if (showPhotoSheet) {
-        PhotoChangeBottomSheet(
-            onDismiss = { showPhotoSheet = false }
-        )
-    }
 }
 
 @Composable
@@ -154,7 +164,7 @@ private fun ProfileEditTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(74.dp)
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -183,7 +193,7 @@ private fun ProfileEditTopBar(
 @Composable
 private fun ProfilePhotoEditor(
     name: String,
-    onPhotoClick: () -> Unit
+    profileImageUrl: String
 ) {
     Column(
         modifier = Modifier
@@ -191,42 +201,22 @@ private fun ProfilePhotoEditor(
             .padding(top = 28.dp, bottom = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            Box(
-                modifier = Modifier
-                    .size(128.dp)
-                    .clip(CircleShape)
-                    .background(Purple.copy(alpha = 0.13f))
-                    .border(3.dp, Purple.copy(alpha = 0.18f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = name.take(1).ifBlank { "?" },
-                    color = Purple,
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Ink)
-                    .border(3.dp, Color.White, CircleShape)
-                    .clickable(onClick = onPhotoClick),
-                contentAlignment = Alignment.Center
-            ) {
-                CameraIcon(color = Color.White, modifier = Modifier.size(19.dp))
-            }
+        Box(
+            modifier = Modifier
+                .size(128.dp)
+                .clip(CircleShape)
+                .background(Purple.copy(alpha = 0.13f))
+                .border(3.dp, Purple.copy(alpha = 0.18f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            UserAvatar(
+                profileImageUrl = profileImageUrl,
+                username = name,
+                color = Purple.copy(alpha = 0.13f),
+                textColor = Purple,
+                size = 128
+            )
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = "사진 변경",
-            color = Purple,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.clickable(onClick = onPhotoClick)
-        )
     }
 }
 
@@ -257,7 +247,8 @@ private fun UnderlineInput(
     required: Boolean = false,
     helper: String? = null,
     singleLine: Boolean = true,
-    minHeight: androidx.compose.ui.unit.Dp = 42.dp
+    minHeight: androidx.compose.ui.unit.Dp = 42.dp,
+    keyboardOptions: KeyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -283,7 +274,7 @@ private fun UnderlineInput(
                 lineHeight = 24.sp,
                 fontWeight = FontWeight.ExtraBold
             ),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = keyboardOptions,
             decorationBox = { innerTextField ->
                 Box(
                     modifier = Modifier.fillMaxSize(),

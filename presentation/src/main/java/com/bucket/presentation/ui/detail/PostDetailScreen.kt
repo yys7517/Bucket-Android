@@ -43,6 +43,7 @@ fun PostDetailRoute(
     postId: Long,
     author: Author,
     onBackClick: () -> Unit,
+    onAuthorClick: (Long) -> Unit = {},
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -82,6 +83,7 @@ fun PostDetailRoute(
         onBackClick = onBackClick,
         onLikeClick = { viewModel.toggleLike(postId) },
         onBookmarkClick = { viewModel.toggleBookmark(postId) },
+        onAuthorClick = onAuthorClick,
         onSelectMandalaCell = viewModel::selectMandalaCell,
         onDismissMandalaModal = viewModel::dismissMandalaModal,
         onAddPlan = { content, color, isComplete, sortOrder -> viewModel.addPlan(content, color, isComplete, sortOrder) },
@@ -103,6 +105,7 @@ fun PostDetailScreen(
     onBackClick: () -> Unit,
     onLikeClick: () -> Unit = {},
     onBookmarkClick: () -> Unit = {},
+    onAuthorClick: (Long) -> Unit = {},
     onSelectMandalaCell: (SmallGoal) -> Unit = {},
     onDismissMandalaModal: () -> Unit = {},
     onAddPlan: (content: String, color: String, isComplete: Boolean, sortOrder: Int) -> Unit = { _, _, _, _ -> },
@@ -156,6 +159,7 @@ fun PostDetailScreen(
                             onLikeClick = onLikeClick,
                             onBookmarkClick = onBookmarkClick,
                             onEditClick = { showEditSheet = true },
+                            onAuthorClick = onAuthorClick,
                         )
                     }
                     item {

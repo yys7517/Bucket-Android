@@ -40,7 +40,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -62,7 +61,7 @@ import com.bucket.presentation.theme.SoftLine
 import com.bucket.presentation.ui.home.component.UserAvatar
 import com.bucket.presentation.ui.home.component.categoryAccent
 
-import com.example.domain.model.home.PopularBucket
+import com.example.domain.model.home.PostCard
 import com.example.domain.model.home.SmallGoalSummary
 import com.example.domain.model.user.Author
 
@@ -72,6 +71,8 @@ private val HOME_CATEGORIES = listOf("전체", "학습", "여행", "운동", "�
 @Composable
 fun HomeRoute(
     onBucketClick: (Long, Author) -> Unit,
+    onMyProfileClick: () -> Unit,
+    onOtherProfileClick: (Long) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -95,6 +96,13 @@ fun HomeRoute(
                     }
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 }
+                is HomeEvent.ProfileRequested -> {
+                    if (event.isMine) {
+                        onMyProfileClick()
+                    } else {
+                        onOtherProfileClick(event.userId)
+                    }
+                }
             }
         }
     }
@@ -103,6 +111,7 @@ fun HomeRoute(
     HomeScreen(
         uiState = uiState,
         onBucketClick = onBucketClick,
+        onAuthorClick = viewModel::openAuthorProfile,
         onCategorySelected = viewModel::selectCategory,
         onBookmarkClick = viewModel::toggleBookmark,
     )
@@ -112,11 +121,12 @@ fun HomeRoute(
 fun HomeScreen(
     uiState: HomeUiState,
     onBucketClick: (Long, Author) -> Unit = { _, _ -> },
+    onAuthorClick: (Long) -> Unit = {},
     onCategorySelected: (String) -> Unit = {},
     onBookmarkClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val hasBuckets = uiState.popularBuckets.isNotEmpty()
+    val hasBuckets = uiState.postCards.isNotEmpty()
 
     Surface(modifier = modifier.fillMaxSize(), color = HomeBackground) {
         LazyColumn(
@@ -169,6 +179,7 @@ fun HomeScreen(
                     FeedCard(
                         bucket = bucket,
                         onClick = { onBucketClick(bucket.id, bucket.author) },
+                        onAuthorClick = { onAuthorClick(bucket.author.userId) },
                         onBookmarkClick = { onBookmarkClick(bucket.id) },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -271,12 +282,14 @@ private fun CategoryChipRow(
 
 @Composable
 private fun FeedCard(
-    bucket: PopularBucket,
+    bucket: PostCard,
     onClick: () -> Unit,
+    onAuthorClick: () -> Unit,
     onBookmarkClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accentColor = categoryAccent(bucket.category, bucket.categoryColor)
+    val isAuthorClickable = bucket.author.userId > 0L
 
     Column(
         modifier = modifier
@@ -303,6 +316,10 @@ private fun FeedCard(
                     username = bucket.author.username,
                     color = accentColor.copy(alpha = 0.18f),
                     textColor = accentColor,
+                    modifier = Modifier.clickable(
+                        enabled = isAuthorClickable,
+                        onClick = onAuthorClick
+                    ),
                     size = 34
                 )
                 Column {
@@ -310,7 +327,11 @@ private fun FeedCard(
                         text = bucket.author.username,
                         color = Ink,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.clickable(
+                            enabled = isAuthorClickable,
+                            onClick = onAuthorClick
+                        )
                     )
                     Text(
                         text = bucket.startDate.toRelativeDateText(),
@@ -708,7 +729,7 @@ private fun String.toRelativeDateText(): String {
     return try {
         val parts = split("-")
         if (parts.size != 3) return this
-        "${parts[0]}년 ${parts[1].toInt()}월 ${parts[2].toInt()}일"
+        "${parts[0]}년 ${parts[1].toInt()}월 ${parts[2].toInt()}일부터 시작"
     } catch (e: Exception) {
         this
     }
@@ -722,8 +743,8 @@ private fun HomeScreenPreview() {
     BucketappTheme(dynamicColor = false) {
         HomeScreen(
             uiState = HomeUiState(
-                popularBuckets = listOf(
-                    PopularBucket(
+                postCards = listOf(
+                    PostCard(
                         id = 1,
                         category = "학습",
                         categoryColor = "#7B5DD6",
@@ -741,7 +762,7 @@ private fun HomeScreenPreview() {
                             3 to SmallGoalSummary("OAuth2", "#7B5DD6", false),
                         )
                     ),
-                    PopularBucket(
+                    PostCard(
                         id = 2,
                         category = "여행",
                         categoryColor = "#2C8BAA",

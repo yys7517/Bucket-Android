@@ -45,7 +45,11 @@ fun BucketNavHost(
             CategoryRoute()
         }
         composable(BucketRoute.Home.route) {
-            HomeRoute(onBucketClick = { id, author -> appState.navigateToBucketDetail(id, author) })
+            HomeRoute(
+                onBucketClick = { id, author -> appState.navigateToBucketDetail(id, author) },
+                onMyProfileClick = appState::navigateToMyProfile,
+                onOtherProfileClick = appState::navigateToOtherProfile,
+            )
         }
         composable(
             route = BucketRoute.BucketDetail.route,
@@ -64,14 +68,45 @@ fun BucketNavHost(
                     username = args?.getString(BucketRoute.BucketDetail.ARG_USERNAME).orEmpty(),
                     profileImgUrl = args?.getString(BucketRoute.BucketDetail.ARG_PROFILE_IMAGE).orEmpty()
                 ),
-                onBackClick = appState::navigateBack
+                onBackClick = appState::navigateBack,
+                onAuthorClick = appState::navigateToOtherProfile,
             )
         }
         composable(BucketRoute.Profile.route) {
-            ProfileRoute(onEditClick = appState::navigateToProfileEdit)
+            ProfileRoute(
+                onEditClick = appState::navigateToProfileEdit,
+                onBucketClick = appState::navigateToBucketDetail,
+            )
         }
-        composable(BucketRoute.ProfileEdit.route) {
-            ProfileEditRoute(onBackClick = appState::navigateBack)
+        composable(
+            route = BucketRoute.ProfileEdit.route,
+            arguments = listOf(
+                navArgument(BucketRoute.ProfileEdit.ARG_USERNAME) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(BucketRoute.ProfileEdit.ARG_EMAIL) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(BucketRoute.ProfileEdit.ARG_INTRODUCTION) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument(BucketRoute.ProfileEdit.ARG_PROFILE_IMAGE) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            )
+        ) { backStackEntry ->
+            val args = backStackEntry.arguments
+            ProfileEditRoute(
+                username = args?.getString(BucketRoute.ProfileEdit.ARG_USERNAME).orEmpty(),
+                email = args?.getString(BucketRoute.ProfileEdit.ARG_EMAIL).orEmpty(),
+                introduction = args?.getString(BucketRoute.ProfileEdit.ARG_INTRODUCTION).orEmpty(),
+                profileImageUrl = args?.getString(BucketRoute.ProfileEdit.ARG_PROFILE_IMAGE).orEmpty(),
+                onBackClick = appState::navigateBack
+            )
         }
         composable(
             route = BucketRoute.OtherProfile.route,
@@ -82,7 +117,8 @@ fun BucketNavHost(
             val userId = backStackEntry.arguments?.getLong(BucketRoute.OtherProfile.ARG_USER_ID) ?: 0L
             OtherProfileRoute(
                 userId = userId,
-                onBackClick = appState::navigateBack
+                onBackClick = appState::navigateBack,
+                onBucketClick = appState::navigateToBucketDetail,
             )
         }
     }

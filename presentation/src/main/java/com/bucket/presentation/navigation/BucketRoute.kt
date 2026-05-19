@@ -23,7 +23,28 @@ sealed class BucketRoute(
         }
     }
     data object Profile : BucketRoute("profile", "마이")
-    data object ProfileEdit : BucketRoute("profile/edit", "프로필 편집")
+    data object ProfileEdit : BucketRoute(
+        "profile/edit?username={username}&email={email}&introduction={introduction}&profileImage={profileImage}",
+        "프로필 편집"
+    ) {
+        const val ARG_USERNAME = "username"
+        const val ARG_EMAIL = "email"
+        const val ARG_INTRODUCTION = "introduction"
+        const val ARG_PROFILE_IMAGE = "profileImage"
+
+        fun createRoute(
+            username: String,
+            email: String,
+            introduction: String,
+            profileImageUrl: String
+        ): String {
+            val encodedUsername = android.net.Uri.encode(username)
+            val encodedEmail = android.net.Uri.encode(email)
+            val encodedIntroduction = android.net.Uri.encode(introduction)
+            val encodedProfileImage = android.net.Uri.encode(profileImageUrl)
+            return "profile/edit?username=$encodedUsername&email=$encodedEmail&introduction=$encodedIntroduction&profileImage=$encodedProfileImage"
+        }
+    }
     data object OtherProfile : BucketRoute("profile/{userId}", "프로필") {
         const val ARG_USER_ID = "userId"
         fun createRoute(userId: Long) = "profile/$userId"

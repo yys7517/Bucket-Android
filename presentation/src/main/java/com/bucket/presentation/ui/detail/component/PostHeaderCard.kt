@@ -3,6 +3,7 @@ package com.bucket.presentation.ui.detail.component
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +46,7 @@ internal fun PostHeaderCard(
     onLikeClick: () -> Unit,
     onBookmarkClick: () -> Unit,
     onEditClick: () -> Unit,
+    onAuthorClick: (Long) -> Unit,
 ) {
     val progressPercent = (progress.coerceIn(0f, 1f) * 100).toInt()
 
@@ -98,7 +100,13 @@ internal fun PostHeaderCard(
         Spacer(Modifier.height(18.dp))
         ProgressBar(progress = progress)
         Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.clickable(
+                enabled = !isMine && post.author.userId > 0L,
+                onClick = { onAuthorClick(post.author.userId) }
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             UserAvatar(
                 profileImageUrl = post.author.profileImgUrl,
                 username = post.author.username,
