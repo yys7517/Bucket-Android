@@ -12,7 +12,7 @@ data class PostCardResponse(
     val likeCount: Int,
     val isLiked: Boolean = false,
     val isBookmarked: Boolean = false,
-    val startDate: String,
+    val startDate: String? = null,
     val userInfo: UserInfoResponse,
     val smallGoalSummary: GoalSummaryResponse,
     val smallGoals: Map<Int, SmallGoalSummaryResponse> = emptyMap(),

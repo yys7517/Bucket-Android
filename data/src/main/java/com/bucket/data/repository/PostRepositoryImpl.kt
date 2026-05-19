@@ -57,14 +57,14 @@ class PostRepositoryImpl @Inject constructor(
         postId: Long,
         title: String,
         memo: String,
-        startDate: String,
+        startDate: String?,
     ): Result<PostUpdateResult> = runCatching {
         postDataSource.updatePost(
             postId = postId,
             request = PostUpdateRequest(
                 goal = title,
                 memo = memo,
-                startDate = startDate,
+                startDate = startDate?.takeIf { it.isNotBlank() },
             )
         ).data.asDomain()
     }

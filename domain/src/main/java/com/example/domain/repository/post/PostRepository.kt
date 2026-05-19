@@ -25,7 +25,7 @@ interface PostRepository {
         postId: Long,
         title: String,
         memo: String,
-        startDate: String,
+        startDate: String?,
     ): Result<PostUpdateResult>
 
     /** DELETE /posts/{postId} — 게시글 삭제 */

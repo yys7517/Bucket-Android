@@ -8,5 +8,5 @@ data class PostUpdateResponse(
     val id: Long,
     val goal: String,
     val memo: String,
-    val startDate: String,
+    val startDate: String? = null,
 )

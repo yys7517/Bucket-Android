@@ -3,6 +3,7 @@ package com.bucket.presentation.ui.detail.extension
 import android.annotation.SuppressLint
 import androidx.compose.ui.graphics.Color
 import androidx.core.graphics.toColorInt
+import java.time.LocalDate
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 
@@ -34,9 +35,15 @@ internal fun displayKoreanDate(iso: String): String {
     return "${y}년 ${m}월 ${d}일"
 }
 
+internal fun todayDateParts(): Triple<Int, Int, Int> {
+    val today = LocalDate.now()
+    return Triple(today.year, today.monthValue, today.dayOfMonth)
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 internal fun String.toKoreanDateText(): String {
+    if (isBlank()) return "시작일을 설정해보세요"
     val parts = split("-")
     if (parts.size != 3) return this
     val month = parts[1].toIntOrNull() ?: return this

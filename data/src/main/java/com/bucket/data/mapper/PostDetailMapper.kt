@@ -17,7 +17,7 @@ fun PostDetailResponse.asDomain(author: Author): PostDetail = PostDetail(
     category = this.category,
     categoryColor = this.categoryColor,
     likeCount = this.likeCount,
-    startDate = this.startDate,
+    startDate = this.startDate.orEmpty(),
     author = author,
     smallGoals = this.smallGoals.map { it.asSmallGoal() },
     isLiked = isLiked,
@@ -46,5 +46,5 @@ fun PostUpdateResponse.asDomain(): PostUpdateResult = PostUpdateResult(
     id = this.id,
     title = this.goal,
     memo = this.memo,
-    startDate = this.startDate,
+    startDate = this.startDate.orEmpty(),
 )

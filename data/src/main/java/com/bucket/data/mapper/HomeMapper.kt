@@ -19,7 +19,7 @@ fun PostCardResponse.asDomain(): PostCard =
         ),
         likeCount = this.likeCount,
         isLiked = this.isLiked,
-        startDate = this.startDate,
+        startDate = this.startDate.orEmpty(),
         completedCount = this.smallGoalSummary.completedCount,
         totalCount = this.smallGoalSummary.totalCount,
         progressRate = this.smallGoalSummary.progressRate,
@@ -41,7 +41,7 @@ fun PostCardResponse.asRecentBucket(): RecentBucket =
             username = this.userInfo.username,
             profileImgUrl = this.userInfo.profileImgUrl
         ),
-        startDate = this.startDate,
+        startDate = this.startDate.orEmpty(),
         likeCount = this.likeCount,
         isLiked = this.isLiked,
         completedCount = this.smallGoalSummary.completedCount,

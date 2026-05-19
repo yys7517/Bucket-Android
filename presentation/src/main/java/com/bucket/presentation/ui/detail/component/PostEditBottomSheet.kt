@@ -58,6 +58,7 @@ import com.bucket.presentation.theme.SoftLine
 import com.bucket.presentation.ui.detail.extension.daysInMonth
 import com.bucket.presentation.ui.detail.extension.displayKoreanDate
 import com.bucket.presentation.ui.detail.extension.parseIsoDateOrNull
+import com.bucket.presentation.ui.detail.extension.todayDateParts
 import com.example.domain.model.post.PostDetail
 
 // ─── Post Edit BottomSheet ──────────────────────────────────────────────────
@@ -69,7 +70,7 @@ import com.example.domain.model.post.PostDetail
 internal fun PostEditBottomSheet(
     post: PostDetail,
     onDismiss: () -> Unit,
-    onSave: (title: String, startDate: String, memo: String) -> Unit,
+    onSave: (title: String, startDate: String?, memo: String) -> Unit,
     onDelete: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -81,6 +82,8 @@ internal fun PostEditBottomSheet(
     var pickedDay by remember { mutableStateOf(parsedInitial?.third) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var ignoreDatePickerChanges by remember { mutableStateOf(false) }
+    val defaultDate = remember { todayDateParts() }
     val canSave = title.isNotBlank()
 
     val composedDate: String? = remember(pickedYear, pickedMonth, pickedDay) {
@@ -107,7 +110,7 @@ internal fun PostEditBottomSheet(
             // 제목
             Box(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "모 수정",
+                    text = "목표 수정",
                     color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.align(Alignment.Center)
                 )
@@ -161,7 +164,17 @@ internal fun PostEditBottomSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showDatePicker = !showDatePicker }
+                        .clickable {
+                            val opening = !showDatePicker
+                            if (opening) ignoreDatePickerChanges = false
+                            if (opening && composedDate == null) {
+                                val (year, month, day) = defaultDate
+                                pickedYear = year
+                                pickedMonth = month
+                                pickedDay = day
+                            }
+                            showDatePicker = opening
+                        }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -179,14 +192,22 @@ internal fun PostEditBottomSheet(
                 if (showDatePicker) {
                     Spacer(Modifier.height(4.dp))
                     WheelDatePicker(
-                        year = pickedYear ?: 2026,
-                        month = pickedMonth ?: 5,
-                        day = pickedDay ?: 16,
+                        year = pickedYear ?: defaultDate.first,
+                        month = pickedMonth ?: defaultDate.second,
+                        day = pickedDay ?: defaultDate.third,
                         onChange = { y, m, d ->
-                            pickedYear = y; pickedMonth = m; pickedDay = d
+                            if (!ignoreDatePickerChanges) {
+                                pickedYear = y
+                                pickedMonth = m
+                                pickedDay = d
+                            }
                         },
                         onReset = {
-                            pickedYear = null; pickedMonth = null; pickedDay = null
+                            ignoreDatePickerChanges = true
+                            pickedYear = null
+                            pickedMonth = null
+                            pickedDay = null
+                            showDatePicker = false
                         },
                         onConfirm = { showDatePicker = false },
                     )
@@ -251,7 +272,7 @@ internal fun PostEditBottomSheet(
                         .clip(RoundedCornerShape(50.dp))
                         .background(if (canSave) Ink else Color(0xFFD7DAE0))
                         .clickable(enabled = canSave) {
-                            onSave(title.trim(), composedDate ?: post.startDate, memo)
+                            onSave(title.trim(), composedDate, memo)
                         },
                     contentAlignment = Alignment.Center
                 ) {

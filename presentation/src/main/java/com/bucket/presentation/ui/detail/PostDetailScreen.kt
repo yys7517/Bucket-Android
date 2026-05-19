@@ -122,7 +122,7 @@ fun PostDetailScreen(
     onAddSmallGoal: (planId: Long, content: String, color: String, isComplete: Boolean, position: Int) -> Unit = { _, _, _, _, _ -> },
     onUpdateSmallGoal: (planId: Long, goalId: Long, content: String, color: String, isComplete: Boolean) -> Unit = { _, _, _, _, _ -> },
     onDeleteSmallGoal: (planId: Long, goalId: Long) -> Unit = { _, _ -> },
-    onUpdatePost: (title: String, startDate: String, memo: String) -> Unit = { _, _, _ -> },
+    onUpdatePost: (title: String, startDate: String?, memo: String) -> Unit = { _, _, _ -> },
     onDeletePost: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {

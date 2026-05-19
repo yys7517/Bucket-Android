@@ -11,7 +11,7 @@ class UpdatePostUseCase @Inject constructor(
         postId: Long,
         title: String,
         memo: String,
-        startDate: String,
+        startDate: String?,
     ) = postRepository.updatePost(
         postId = postId,
         title = title,

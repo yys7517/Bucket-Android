@@ -477,7 +477,7 @@ class PostDetailViewModel @Inject constructor(
      * 게시글(태스크) 본문 수정 — 목표 이름 / 시작일 / 메모.
      * 낙관적 업데이트 후 서버 응답으로 reconcile. 실패 시 이전 값으로 롤백.
      */
-    fun updatePost(title: String, startDate: String, memo: String) {
+    fun updatePost(title: String, startDate: String?, memo: String) {
         val current = _uiState.value
         val post = current.postDetail ?: return
         val trimmedTitle = title.trim()
@@ -488,7 +488,7 @@ class PostDetailViewModel @Inject constructor(
                 isMutating = true,
                 postDetail = post.copy(
                     title = trimmedTitle,
-                    startDate = startDate,
+                    startDate = startDate.orEmpty(),
                     memo = memo,
                 )
             )
