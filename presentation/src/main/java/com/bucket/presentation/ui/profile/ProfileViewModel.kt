@@ -6,6 +6,7 @@ import com.example.domain.model.home.PostCard
 import com.example.domain.model.profile.ProfilePostStatus
 import com.example.domain.model.profile.ProfilePostType
 import com.example.domain.usecase.auth.GetSavedUserIdUseCase
+import com.example.domain.usecase.auth.LogoutUseCase
 import com.example.domain.usecase.profile.GetMyProfileUseCase
 import com.example.domain.usecase.profile.GetProfilePostsUseCase
 import com.example.domain.usecase.profile.GetProfileUseCase
@@ -63,6 +64,7 @@ data class ProfileUiState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val getSavedUserIdUseCase: GetSavedUserIdUseCase,
+    private val logoutUseCase: LogoutUseCase,
     private val getMyProfileUseCase: GetMyProfileUseCase,
     private val getProfileUseCase: GetProfileUseCase,
     private val getProfilePostsUseCase: GetProfilePostsUseCase,
@@ -163,6 +165,17 @@ class ProfileViewModel @Inject constructor(
 
     fun toggleFollow() {
         _uiState.update { it.copy(isFollowing = !it.isFollowing) }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            logoutUseCase()
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(profileErrorMessage = throwable.message ?: "로그아웃에 실패했습니다.")
+                    }
+                }
+        }
     }
 
     fun applyProfileUpdate(

@@ -22,12 +22,13 @@ data class BucketAppState(
     private var createdPostDetail: PostDetail? by mutableStateOf(null)
 
     fun navigateToBottomBarRoute(route: BucketRoute) {
+        if (navController.currentBackStackEntry?.destination?.route == route.route) return
+
         navController.navigate(route.route) {
-            popUpTo(navController.graph.startDestinationId) {
-                saveState = true
+            popUpTo(navController.graph.id) {
+                inclusive = true
             }
             launchSingleTop = true
-            restoreState = true
         }
     }
 

@@ -2,6 +2,7 @@ package com.bucket.presentation.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -39,10 +42,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +108,7 @@ fun ProfileRoute(
         onFollowClick = viewModel::toggleFollow,
         onBucketClick = onBucketClick,
         onFabClick = onCreatePostClick,
+        onLogoutClick = viewModel::logout,
         onEditClick = {
             onEditClick(
                 uiState.username,
@@ -143,6 +152,7 @@ fun ProfileScreen(
     onBucketClick: (Long, Author) -> Unit = { _, _ -> },
     onFabClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {},
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -197,6 +207,7 @@ fun ProfileScreen(
                     uiState = uiState,
                     onFollowClick = onFollowClick,
                     onEditClick = onEditClick,
+                    onLogoutClick = onLogoutClick,
                     onBackClick = onBackClick,
                 )
             }
@@ -313,8 +324,11 @@ private fun ProfileHeader(
     uiState: ProfileUiState,
     onFollowClick: () -> Unit,
     onEditClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     onBackClick: (() -> Unit)?,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -330,12 +344,50 @@ private fun ProfileHeader(
                 BackArrowIcon(color = Ink)
             }
         } else {
-            Text(
-                text = "내 프로필",
-                color = Ink,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "내 프로필",
+                    color = Ink,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(1.dp, SoftLine, CircleShape)
+                            .clickable { showMenu = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ProfileMenuIcon(modifier = Modifier.size(22.dp), color = Ink)
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "로그아웃",
+                                    color = Color(0xFFE04D5F),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onLogoutClick()
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         // ── 아바타 + 이름/아이디 + 액션 버튼
@@ -672,6 +724,22 @@ private fun ProfileCheckIcon(modifier: Modifier = Modifier, color: Color) {
             strokeWidth = stroke,
             cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
+    }
+}
+
+@Composable
+private fun ProfileMenuIcon(modifier: Modifier = Modifier, color: Color) {
+    Canvas(modifier) {
+        val stroke = 2.2.dp.toPx()
+        listOf(0.28f, 0.50f, 0.72f).forEach { y ->
+            drawLine(
+                color = color,
+                start = Offset(size.width * 0.18f, size.height * y),
+                end = Offset(size.width * 0.82f, size.height * y),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+        }
     }
 }
 

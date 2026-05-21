@@ -5,4 +5,5 @@ import com.bucket.data.network.dto.common.BaseResponse
 
 interface AuthDataSource {
     suspend fun loginWithKakao(accessToken: String): BaseResponse<AuthResponse>
+    suspend fun logout()
 }

@@ -26,4 +26,19 @@ class AuthRemoteDataSource @Inject constructor(
 
         return response.body()
     }
+
+    override suspend fun logout() {
+        val response = client.post("auth/logout")
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException(response.bodyAsText())
+        }
+
+        if (response.status.value == 200) return
+
+        val logoutResponse = response.body<BaseResponse<String>>()
+        if (logoutResponse.data != "Success" && logoutResponse.code != 200) {
+            throw IllegalStateException(logoutResponse.message)
+        }
+    }
 }

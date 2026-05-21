@@ -96,42 +96,51 @@ internal object NetworkModule {
                     }
 
                     refreshTokens {
-                        val refreshToken = oldTokens?.refreshToken
+                        val refreshToken = authLocalDataSource.refreshToken.first()
 
                         if (refreshToken.isNullOrBlank()) {
                             authLocalDataSource.clear()
                             return@refreshTokens null
                         }
 
-                        runCatching {
-                            val response = refreshClient.post("auth/refresh") {
+                        val response = runCatching {
+                            refreshClient.post("auth/refresh") {
                                 header(HttpHeaders.Authorization, "Bearer $refreshToken")
                             }
-
-                            if (!response.status.isSuccess()) {
-                                val errorBody = response.bodyAsText()
-                                Timber.e("Token refresh failed with status=%s body=%s", response.status, errorBody)
-                                throw IllegalStateException(errorBody)
-                            }
-
-                            val refreshResponse = response.body<BaseResponse<RefreshTokenResponse>>()
-
-                            authLocalDataSource.saveAccessToken(refreshResponse.data.accessToken)
-
-                            BearerTokens(
-                                accessToken = refreshResponse.data.accessToken,
-                                refreshToken = refreshToken
-                            )
                         }.getOrElse { throwable ->
-                            Timber.e(throwable, "Token refresh failed.")
+                            Timber.e(throwable, "Token refresh request failed.")
                             authLocalDataSource.clear()
-                            null
+                            return@refreshTokens null
                         }
+
+                        if (!response.status.isSuccess()) {
+                            val errorBody = response.bodyAsText()
+                            Timber.e("Token refresh failed with status=%s body=%s", response.status, errorBody)
+                            authLocalDataSource.clear()
+                            return@refreshTokens null
+                        }
+
+                        val refreshResponse = runCatching {
+                            response.body<BaseResponse<RefreshTokenResponse>>()
+                        }.getOrElse { throwable ->
+                            Timber.e(throwable, "Token refresh response parsing failed.")
+                            authLocalDataSource.clear()
+                            return@refreshTokens null
+                        }
+
+                        authLocalDataSource.saveAccessToken(refreshResponse.data.accessToken)
+
+                        BearerTokens(
+                            accessToken = refreshResponse.data.accessToken,
+                            refreshToken = refreshToken
+                        )
                     }
 
                     sendWithoutRequest { request ->
                         val path = request.url.encodedPath
-                        !path.contains("auth/kakao") && !path.contains("auth/logout")
+                        !path.contains("auth/kakao") &&
+                            !path.contains("auth/logout") &&
+                            !path.contains("auth/refresh")
                     }
                 }
             }

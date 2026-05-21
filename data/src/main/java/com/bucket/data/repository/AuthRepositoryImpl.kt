@@ -23,6 +23,11 @@ class AuthRepositoryImpl @Inject constructor(
             }
     }
 
+    override suspend fun logout(): Result<Unit> = runCatching {
+        authDataSource.logout()
+        authLocalDataSource.clear()
+    }
+
     override suspend fun hasSavedLogin(): Boolean {
         val userId = authLocalDataSource.userId.first()
         val accessToken = authLocalDataSource.accessToken.first()
